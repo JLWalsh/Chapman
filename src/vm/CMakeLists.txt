@@ -1,4 +1,4 @@
-set(VM_SOURCE_FILES vm.c)
+set(VM_SOURCE_FILES chapman.c)
 
 add_library(vm ${VM_SOURCE_FILES})
 
