@@ -3,17 +3,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <vm/chapman.h>
-#include "token.h"
-#include "emit.h"
+#include "parser.h"
 
 const char program[] = "HALT"; 
 
 int main(void) {
     uint16_t num_tokens;
-    ch_token* tokens = ch_extract_tokens(program, sizeof(program), &num_tokens);
-    uint8_t* program = ch_emit(tokens, num_tokens);
+    ch_token_state state = ch_token_init(program, sizeof(program));
 
-    ch_run(program);
+    ch_parse_emit(&state);
 
     return 0;
 }
