@@ -3,17 +3,51 @@
 #include <stdbool.h>
 
 typedef enum {
-    HALT = 1
+    // Not a real token, used by ch_parse_token_kind to return that 
+    // the lexeme did not match any reserved keywords
+    TK_NONE,
+
+    TK_VAL,
+    TK_VAR,
+    
+    TK_EQ,
+    TK_PLUS,
+    TK_MINUS,
+
+    // Semicolon
+    TK_SEMI,
+    TK_COMMA,
+
+    // Parenthesis
+    TK_POPEN,
+    TK_PCLOSE,
+
+    // Curly bracket
+    TK_COPEN,
+    TK_CCLOSE,
+
+    TK_ID,
+    TK_NUM,
+
+    // Do not declare any tokens after this
+    NUM_TOKENS
 } ch_token_kind;
+
+typedef struct {
+    const char* start;
+    size_t size;
+} ch_lexeme;
 
 typedef struct ch_token {
     ch_token_kind kind;
+    ch_lexeme lexeme;
 } ch_token;
 
 typedef struct {
     const uint8_t* program;
-    uint8_t* current;
+    char* current;
     size_t size;
+    uint16_t line;
 } ch_token_state;
 
 ch_token_state ch_token_init(const uint8_t* program, size_t size);

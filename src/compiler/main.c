@@ -5,7 +5,7 @@
 #include <vm/chapman.h>
 #include "parser.h"
 
-const char program[] = "HALT"; 
+const char program[] = "HALT{}()+-=;\n #          val var valvar 12 12. 12.2"; 
 
 int main(void) {
     uint16_t num_tokens;

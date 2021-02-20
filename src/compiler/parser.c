@@ -3,11 +3,9 @@
 #include <stdio.h>
 
 void ch_parse_emit(ch_token_state* state) {
-    ch_token current;
-    
-    if(!ch_token_next(state, &current)) {
-        printf("Error parsing token!");
-    } else {
-        printf("All good!");
+    for(int i = 0; i < 10; i++) {
+        ch_token current;
+        bool ok = ch_token_next(state, &current);
+        int x = current.kind;
     }
 }

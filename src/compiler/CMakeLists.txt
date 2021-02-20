@@ -2,6 +2,7 @@ SET(COMPILER_SOURCES
     main.c 
     token.c
     parser.c
+    error.c
 )
 
 add_executable(compiler ${COMPILER_SOURCES})
