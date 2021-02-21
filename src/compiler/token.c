@@ -17,7 +17,7 @@ const ch_keyword keywords[] = {
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)
-const bool keywords_with_lexemes[NUM_TOKENS] = {
+const bool tokens_with_lexemes[NUM_TOKENS] = {
     [TK_ID] = true,
     [TK_NUM] = true
 };
@@ -66,15 +66,26 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
             case '}':
                 *next = ch_get_token(start, state, TK_CCLOSE);
                 return true;
+            case '\0':
+                *next = ch_get_token(start, state, TK_EOF);
+                return true;
             case '\n':
                 state->line++;
                 continue;
-            case '#':
-                while(*state->current != '\n') {
-                    state->current++;
-                    start++;
+            case '/':
+                if (*state->current == '/') {
+                    while(*state->current != '\n') {
+                        state->current++;
+                        start++;
+                    }
+                    continue;
                 }
-                continue;
+                
+                *next = ch_get_token(start, state, TK_DIV);
+                return true;
+            case '*':
+                *next = ch_get_token(start, state, TK_MUL);
+                return true;
             default:
                 if (isspace(current)) {
                     start++;
@@ -134,8 +145,8 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
         }
     }
 
-    ch_tk_error("Out of characters", state);
-    return false;
+    *next = ch_get_token(start, state, TK_EOF);
+    return true;
 }
 
 ch_token_kind ch_parse_token_kind(const char* token_start, size_t token_size) {
@@ -151,8 +162,8 @@ ch_token_kind ch_parse_token_kind(const char* token_start, size_t token_size) {
 ch_token ch_get_token(const char* start, ch_token_state* state, ch_token_kind kind) {
     ch_token token = {.kind=kind};
      
-    if (keywords_with_lexemes[kind]) {
-        token.lexeme = (ch_lexeme){.start=start, .size=state->current - start - 1};
+    if (tokens_with_lexemes[kind]) {
+        token.lexeme = (ch_lexeme){.start=start, .size=state->current - start};
     }
 
     return token;

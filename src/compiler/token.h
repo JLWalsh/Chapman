@@ -6,6 +6,8 @@ typedef enum {
     // Not a real token, used by ch_parse_token_kind to return that 
     // the lexeme did not match any reserved keywords
     TK_NONE,
+    // Used when the token cannot be parsed
+    TK_ERROR,
 
     TK_VAL,
     TK_VAR,
@@ -13,6 +15,8 @@ typedef enum {
     TK_EQ,
     TK_PLUS,
     TK_MINUS,
+    TK_MUL,
+    TK_DIV,
 
     // Semicolon
     TK_SEMI,
@@ -28,6 +32,8 @@ typedef enum {
 
     TK_ID,
     TK_NUM,
+
+    TK_EOF,
 
     // Do not declare any tokens after this
     NUM_TOKENS

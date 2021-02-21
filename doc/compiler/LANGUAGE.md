@@ -2,7 +2,7 @@
 
 ### Example
 ```chapman
-# This is a comment
+// This is a comment
 val aConstant = 10;
 var aVariable = 20;
 
