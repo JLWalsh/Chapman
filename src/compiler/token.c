@@ -81,10 +81,10 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
                     continue;
                 }
                 
-                *next = ch_get_token(start, state, TK_DIV);
+                *next = ch_get_token(start, state, TK_FSLASH);
                 return true;
             case '*':
-                *next = ch_get_token(start, state, TK_MUL);
+                *next = ch_get_token(start, state, TK_STAR);
                 return true;
             default:
                 if (isspace(current)) {
