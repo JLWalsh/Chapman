@@ -1,13 +1,31 @@
 #include "chapman.h"
 #include "ops.h"
+#include "fail.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
+void fail(ch_context* context, ch_fail reason);
+
 bool read_number(ch_context* context, double* value);
 
+ch_context create_context(ch_program program) {
+    return (ch_context) {
+        .pstart=program.start, 
+        .pend=program.start + program.size, 
+        .pcurrent=program.start,
+        .stack=ch_stack_create()
+    };
+}
+
+#define STACK_PUSH(stack, value, primitive) \
+    if(!ch_stack_push((stack), (value), (primitive))) { \
+        fail(&context, FAIL_STACK_SIZE_EXCEEDED); \
+        running = false; \
+    } \
+
 void ch_run(ch_program program) {
-    ch_context context = {.pstart=program.start, .pend=program.start + program.size, .pcurrent=program.start};
+    ch_context context = create_context(program);
 
     bool running = true;
     while(running) {
@@ -16,11 +34,12 @@ void ch_run(ch_program program) {
         
         switch(current) {
             case OP_NUMBER: {
-                double number;
-                if(!read_number(&context, &number)) {
-                    printf("Error reading number");
+                double value;
+                if(!read_number(&context, &value)) {
+                    printf("Error reading number\n");
                 }
-                printf("Numbah! %f \n", number);
+                STACK_PUSH(&context.stack, &value, NUMBER);
+                printf("Numbah! %f \n", value);
                 break;
             }
             case OP_ADD: {

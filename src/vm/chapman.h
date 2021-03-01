@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include "stack.h"
 #include "ops.h"
 
 #define CH_DATAPTR_NULL 0
@@ -15,6 +16,8 @@ typedef struct {
     uint8_t* pstart;
     uint8_t* pend;
     uint8_t* pcurrent;
+
+    ch_stack stack;
 } ch_context;
 
 void ch_run(ch_program program);
