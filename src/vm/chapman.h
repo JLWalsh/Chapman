@@ -6,4 +6,15 @@
 #define CH_DATAPTR_MAX UINT32_MAX
 typedef uint32_t ch_dataptr;
 
-void ch_run(uint8_t* program);
+typedef struct {
+    uint8_t* start;
+    size_t size;
+} ch_program;
+
+typedef struct {
+    uint8_t* pstart;
+    uint8_t* pend;
+    uint8_t* pcurrent;
+} ch_context;
+
+void ch_run(ch_program program);

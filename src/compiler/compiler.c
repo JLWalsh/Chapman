@@ -57,8 +57,9 @@ ch_program ch_compile(const uint8_t* program, size_t program_size) {
     expression(&comp);
 
     consume(&comp, TK_EOF, "Expected end of file.");
+    ch_emit_op(&comp.emit, OP_HALT);
 
-    return ch_emit_assemble(&comp.emit);
+    return ch_assemble(&comp.emit);
 }
 
 void advance(ch_compilation* comp) {
@@ -89,7 +90,7 @@ void parse(ch_compilation* comp, ch_precedence_level prec) {
 
     while(prec <= get_rule(comp->current.kind)->prec) {
         advance(comp);
-        ch_parse_func infix = get_rule(comp->current.kind)->infix_parse;
+        ch_parse_func infix = get_rule(comp->previous.kind)->infix_parse;
         infix(comp);
     }
 }
@@ -136,14 +137,8 @@ void number(ch_compilation* comp) {
 
     double value = strtod(start, NULL);
 
-    ch_dataptr ptr = ch_emit_data(&comp->emit, &value, sizeof(double));
-    if (ptr == CH_DATAPTR_NULL) {
-        ch_pr_error("Data section has reached max capacity.", comp);
-        return;
-    }
-
     ch_emit_op(&comp->emit, OP_NUMBER);
-    ch_emit_ptr(&comp->emit, ptr);
+    ch_emit_number(&comp->emit, value);
 }
 
 const ch_parse_rule* get_rule(ch_token_kind kind) {

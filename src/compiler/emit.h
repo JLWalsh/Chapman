@@ -17,18 +17,14 @@ typedef struct {
     ch_blob bytecode;
 } ch_emit;
 
-typedef struct {
-    uint8_t* start;
-    size_t size;
-} ch_program;
-
 ch_emit ch_emit_create();
 
-// Assembles the final program
-ch_program ch_emit_assemble(ch_emit* emit);
+ch_program ch_assemble(ch_emit* emit);
 
 ch_dataptr ch_emit_data(ch_emit* emit, void* data_start, size_t data_size);
 
 void ch_emit_op(ch_emit* emit, ch_op op);
 
 void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr);
+
+void ch_emit_number(ch_emit* emit, double value);
