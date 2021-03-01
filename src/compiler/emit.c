@@ -2,6 +2,7 @@
 #include "util.h"
 #include <stdlib.h>
 #include <string.h>
+#include <stddef.h>
 
 ch_blob ch_blob_init(size_t initial_size);
 ch_dataptr ch_blob_write(ch_blob* blob, void* data_start, size_t write_size);

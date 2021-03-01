@@ -5,7 +5,9 @@
 #include <string.h>
 #include <stdio.h>
 
-void fail(ch_context* context, ch_fail reason);
+void fail(ch_context* context, ch_fail reason) {
+    printf("Failed: %d", reason);
+}
 
 bool read_number(ch_context* context, double* value);
 
@@ -60,6 +62,15 @@ void ch_run(ch_program program) {
             }
             case OP_HALT: {
                 running = false;
+                break;
+            }
+            case OP_POP: {
+                ch_stack_entry entry;
+                if(!ch_stack_pop(&context.stack, &entry)) {
+                    printf("Failed to POPPOPOPOP");
+                } else {
+                    printf("We popped %d", entry.primitive);
+                }
                 break;
             }
             default: {

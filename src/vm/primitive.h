@@ -8,8 +8,10 @@ typedef enum {
     NUMBER_OF_PRIMITIVES,
 } ch_primitive;
 
-#define PRIMITIVE_SIZE(primitive) (PRIMITIVE_SIZES[primitive])
+#define PRIMITIVE_SIZE(primitive) (PRIMITIVES[primitive].size)
 
-size_t PRIMITIVE_SIZES[NUMBER_OF_PRIMITIVES] = {
-    [NUMBER] = sizeof(double)
-};
+typedef struct {
+    size_t size;
+} ch_primitive_table_entry;
+
+ch_primitive_table_entry PRIMITIVES[NUMBER_OF_PRIMITIVES];

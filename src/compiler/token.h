@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef enum {
     // Not a real token, used by ch_parse_token_kind to return that 
