@@ -31,9 +31,11 @@ bool ch_stack_pop(ch_stack* stack, ch_stack_entry* popped) {
         return false;
     }
 
-    ch_primitive primitive = *(stack->current - 1);
-    size_t size = PRIMITIVE_SIZE(primitive);
+    popped->primitive = *(stack->current - 1);
+    size_t size = PRIMITIVE_SIZE(popped->primitive);
     stack->current -= size + FOOTER_SIZE;
+
+    memcpy(&popped->data_start, stack->current, size);
 
     return true;
 }

@@ -11,6 +11,8 @@ typedef struct {
 
 typedef struct {
     union {
+        uint8_t data_start;
+
         double number_value;
     };
     ch_primitive primitive;
