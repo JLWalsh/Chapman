@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "stack.h"
 #include "ops.h"
+#include "fail.h"
 
 #define CH_DATAPTR_NULL 0
 #define CH_DATAPTR_MAX UINT32_MAX
@@ -18,6 +19,7 @@ typedef struct {
     uint8_t* pcurrent;
 
     ch_stack stack;
+    ch_fail fail;
 } ch_context;
 
 void ch_run(ch_program program);

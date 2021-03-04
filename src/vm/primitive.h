@@ -14,4 +14,4 @@ typedef struct {
     size_t size;
 } ch_primitive_table_entry;
 
-ch_primitive_table_entry PRIMITIVES[NUMBER_OF_PRIMITIVES];
+extern const ch_primitive_table_entry PRIMITIVES[NUMBER_OF_PRIMITIVES];

@@ -1,12 +1,11 @@
 #include "chapman.h"
 #include "ops.h"
-#include "fail.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 
 void fail(ch_context* context, ch_fail reason) {
-    printf("Failed: %d", reason);
+    context->fail = reason;
 }
 
 bool read_number(ch_context* context, double* value);
@@ -16,13 +15,26 @@ ch_context create_context(ch_program program) {
         .pstart=program.start, 
         .pend=program.start + program.size, 
         .pcurrent=program.start,
-        .stack=ch_stack_create()
+        .stack=ch_stack_create(),
+        .fail=FAIL_NONE,
     };
 }
 
 #define STACK_PUSH(stack, value, primitive) \
-    if(!ch_stack_push((stack), (value), (primitive))) { \
+    if(!ch_stack_push(stack, value, primitive)) { \
         fail(&context, FAIL_STACK_SIZE_EXCEEDED); \
+        running = false; \
+    } \
+
+#define STACK_POP(stack, value) \
+    if(!ch_stack_pop(stack, value)) { \
+        fail(&context, FAIL_STACK_EMPTY); \
+        running = false; \
+    } \
+
+#define READ_NUMBER(context, value) \
+    if(!read_number(context, value)) { \
+        fail(context, FAIL_PROGRAM_OUT_OF_INSTRUCTIONS); \
         running = false; \
     } \
 
@@ -37,10 +49,9 @@ void ch_run(ch_program program) {
         switch(current) {
             case OP_NUMBER: {
                 double value;
-                if(!read_number(&context, &value)) {
-                    printf("Error reading number\n");
-                }
+                READ_NUMBER(&context, &value);
                 STACK_PUSH(&context.stack, &value, NUMBER);
+
                 printf("Numbah! %f \n", value);
                 break;
             }
@@ -66,11 +77,7 @@ void ch_run(ch_program program) {
             }
             case OP_POP: {
                 ch_stack_entry entry;
-                if(!ch_stack_pop(&context.stack, &entry)) {
-                    printf("Failed to POPPOPOPOP");
-                } else {
-                    printf("We popped %d", entry.primitive);
-                }
+                STACK_POP(&context.stack, &entry);
                 break;
             }
             default: {
@@ -79,7 +86,11 @@ void ch_run(ch_program program) {
         }
     }
 
-    printf("VM cleanup \n");
+    if (context.fail != FAIL_NONE) {
+        printf("Runtime error: %d.\n", context.fail);
+    } else {
+        printf("Program has halted.\n");
+    }
 }
 
 bool read_number(ch_context* context, double* value) {

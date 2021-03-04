@@ -33,17 +33,19 @@ bool ch_stack_pop(ch_stack* stack, ch_stack_entry* popped) {
 
     ch_primitive primitive = *(stack->current - 1);
     size_t size = PRIMITIVE_SIZE(primitive);
-    stack->current -= size - FOOTER_SIZE;
+    stack->current -= size + FOOTER_SIZE;
 
     return true;
 }
 
 ch_stack ch_stack_create() {
-    uint8_t* start = malloc(9);
+    // TODO make stack size configurable upon startup
+    size_t size = 1000;
+    uint8_t* start = malloc(size);
 
     return (ch_stack) {
         .start=start,
-        .end=start + 9,
+        .end=start + size,
         .current=start,
     };
 }
