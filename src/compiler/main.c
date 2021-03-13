@@ -4,7 +4,7 @@
 #include <vm/chapman.h>
 #include "compiler.h"
 
-const char program[] = "12.5 + 3"; 
+const char program[] = "val x = 40; 10 + x; val y = 50; x + y;"; 
 
 int main(void) {
     ch_program compiled_program = ch_compile(program, sizeof(program));

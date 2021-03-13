@@ -4,6 +4,7 @@ SET(COMPILER_SOURCES
     compiler.c
     error.c
     emit.c
+    hash.c
 )
 
 add_executable(compiler ${COMPILER_SOURCES})

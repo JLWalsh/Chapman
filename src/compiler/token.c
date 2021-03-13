@@ -70,6 +70,9 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
             case '\0':
                 *next = ch_get_token(start, state, TK_EOF);
                 return true;
+            case '#':
+                *next = ch_get_token(start, state, TK_POUND);
+                return true;
             case '\n':
                 state->line++;
                 continue;
@@ -99,19 +102,14 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
                         state->current++;
                     }
 
-                    ptrdiff_t lexeme_size = state->current - start - 1;
+                    ptrdiff_t lexeme_size = state->current - start;
                     if (lexeme_size >= MAX_ID_LENGTH) {
                         ch_tk_error("Identifier size exceeds limit", state);
                         return false;
                     }
 
                     ch_token_kind token_kind = ch_parse_token_kind(start, lexeme_size);
-
-                    if (token_kind == TK_NONE) {
-                        *next = ch_get_token(start, state, TK_ID);
-                    } else {
-                        *next = ch_get_token(start, state, token_kind);
-                    }
+                    *next = ch_get_token(start, state, token_kind);
 
                     return true;
                 }
@@ -157,7 +155,7 @@ ch_token_kind ch_parse_token_kind(const char* token_start, size_t token_size) {
         }
     }
 
-    return TK_NONE;
+    return TK_ID;
 }
 
 ch_token ch_get_token(const char* start, ch_token_state* state, ch_token_kind kind) {

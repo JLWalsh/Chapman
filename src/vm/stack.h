@@ -4,12 +4,6 @@
 #include "primitive.h"
 
 typedef struct {
-    uint8_t* start;
-    uint8_t* end;
-    uint8_t* current;
-} ch_stack;
-
-typedef struct {
     union {
         uint8_t data_start;
 
@@ -18,8 +12,16 @@ typedef struct {
     ch_primitive primitive;
 } ch_stack_entry;
 
+typedef struct {
+    ch_stack_entry* start;
+    ch_stack_entry* end;
+    ch_stack_entry* current;
+} ch_stack;
+
 ch_stack ch_stack_create();
 
-bool ch_stack_push(ch_stack* stack, void* value, ch_primitive primitive);
+bool ch_stack_push(ch_stack* stack, ch_stack_entry entry);
 
 bool ch_stack_pop(ch_stack* stack, ch_stack_entry* popped);
+
+bool ch_stack_copy(ch_stack* stack, uint8_t index);

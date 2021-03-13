@@ -10,4 +10,6 @@ typedef enum {
     OP_SUB,
     OP_MUL,
     OP_DIV,
+
+    OP_LOAD_LOCAL,
 } ch_op;

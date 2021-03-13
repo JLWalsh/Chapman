@@ -1,7 +1,6 @@
 set(VM_SOURCE_FILES 
     chapman.c
     stack.c
-    primitive.c
 )
 
 add_library(vm ${VM_SOURCE_FILES})

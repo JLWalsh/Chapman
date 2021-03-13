@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-void exit(ch_context* context, ch_exit reason) {
+void halt(ch_context* context, ch_exit reason) {
     context->exit = reason;
 }
 
@@ -29,21 +29,23 @@ ch_context create_context(ch_program program) {
     };
 }
 
-#define STACK_PUSH(stack, value, primitive) \
-    if(!ch_stack_push(stack, value, primitive)) { \
-        fail(&context, EXIT_STACK_SIZE_EXCEEDED); \
+#define MAKE_NUMBER(value) ((ch_stack_entry) {.number_value=value,.primitive=NUMBER})
+
+#define STACK_PUSH(stack, entry) \
+    if(!ch_stack_push(stack, entry)) { \
+        halt(&context, EXIT_STACK_SIZE_EXCEEDED); \
         running = false; \
     } \
 
 #define STACK_POP(stack, value) \
     if(!ch_stack_pop(stack, value)) { \
-        exit(&context, EXIT_STACK_EMPTY); \
+        halt(&context, EXIT_STACK_EMPTY); \
         running = false; \
     } \
 
 #define READ_NUMBER(context, value) \
     if(!read_number(context, value)) { \
-        exit(context, EXIT_PROGRAM_OUT_OF_INSTRUCTIONS); \
+        halt(context, EXIT_PROGRAM_OUT_OF_INSTRUCTIONS); \
         running = false; \
     } \
 
@@ -59,7 +61,7 @@ void ch_run(ch_program program) {
             case OP_NUMBER: {
                 double value;
                 READ_NUMBER(&context, &value);
-                STACK_PUSH(&context.stack, &value, NUMBER);
+                STACK_PUSH(&context.stack, MAKE_NUMBER(value));
                 break;
             }
             case OP_ADD: {
@@ -69,7 +71,8 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &right);
 
                 double result = left.number_value + right.number_value;
-                STACK_PUSH(&context.stack, &result, NUMBER);
+                //STACK_PUSH(&context.stack, MAKE_NUMBER(result));
+                printf("Just added %f + %f together!\n", left.number_value, right.number_value);
                 break;
             }
             case OP_SUB: {
@@ -79,7 +82,7 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &right);
 
                 double result = left.number_value - right.number_value;
-                STACK_PUSH(&context.stack, &result, NUMBER);
+                STACK_PUSH(&context.stack, MAKE_NUMBER(result));
                 break;
             }
             case OP_MUL: {
@@ -89,7 +92,7 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &right);
 
                 double result = left.number_value * right.number_value;
-                STACK_PUSH(&context.stack, &result, NUMBER);
+                STACK_PUSH(&context.stack, MAKE_NUMBER(result));
                 break;
             }
             case OP_DIV: {
@@ -99,7 +102,7 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &right);
 
                 double result = left.number_value / right.number_value;
-                STACK_PUSH(&context.stack, &result, NUMBER);
+                STACK_PUSH(&context.stack, MAKE_NUMBER(result));
                 break;
             }
             case OP_HALT: {
@@ -111,8 +114,15 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &entry);
                 break;
             }
+            case OP_LOAD_LOCAL: {
+                double value;
+                READ_NUMBER(&context, &value);
+                uint8_t offset = (uint8_t) value;
+                ch_stack_copy(&context.stack, offset);
+                break;
+            }
             default: {
-                exit(&context, EXIT_UNKNOWN_INSTRUCTION);
+                halt(&context, EXIT_UNKNOWN_INSTRUCTION);
                 break;
             }
         }

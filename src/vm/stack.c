@@ -10,18 +10,13 @@
     used to know how many bytes to roll back the stack pointer when popping an element.
 */
 
-#define FOOTER_SIZE 1
-
-bool ch_stack_push(ch_stack* stack, void* value, ch_primitive primitive) {
-    size_t size = PRIMITIVE_SIZE(primitive) + FOOTER_SIZE;
-    if (stack->current + size > stack->end) {
+bool ch_stack_push(ch_stack* stack, ch_stack_entry entry) {
+    if (stack->current >= stack->end) {
         return false;
     }
 
-    memcpy(stack->current, value, size);
-    stack->current += size;
-
-    *(stack->current - 1) = primitive;
+    *stack->current = entry;
+    stack->current++;
 
     return true;
 }
@@ -31,18 +26,27 @@ bool ch_stack_pop(ch_stack* stack, ch_stack_entry* popped) {
         return false;
     }
 
-    popped->primitive = *(stack->current - 1);
-    size_t size = PRIMITIVE_SIZE(popped->primitive);
-    stack->current -= size + FOOTER_SIZE;
+    *popped = *(stack->current - 1);
+    stack->current--;
 
-    memcpy(&popped->data_start, stack->current, size);
+    return true;
+}
+
+bool ch_stack_copy(ch_stack* stack, uint8_t index) {
+    ch_stack_entry* position = &stack->start[index];
+    if (position < stack->start || position >= stack->current) {
+        return false;
+    }
+
+    *stack->current = *(position);
+    stack->current++;
 
     return true;
 }
 
 ch_stack ch_stack_create() {
     // TODO make stack size configurable upon startup
-    size_t size = 1000;
+    size_t size = 1000 * sizeof(ch_stack_entry);
     uint8_t* start = malloc(size);
 
     return (ch_stack) {

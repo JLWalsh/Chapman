@@ -4,10 +4,6 @@
 #include <stdlib.h>
 
 typedef enum {
-    // Not a real token, used by ch_parse_token_kind to return that 
-    // the lexeme did not match any reserved keywords
-    TK_NONE,
-
     TK_VAL,
     TK_VAR,
     
@@ -21,6 +17,8 @@ typedef enum {
     // Semicolon
     TK_SEMI,
     TK_COMMA,
+
+    TK_POUND,       // #
 
     // Parenthesis
     TK_POPEN,
