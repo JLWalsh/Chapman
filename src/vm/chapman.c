@@ -71,8 +71,7 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &right);
 
                 double result = left.number_value + right.number_value;
-                //STACK_PUSH(&context.stack, MAKE_NUMBER(result));
-                printf("Just added %f + %f together!\n", left.number_value, right.number_value);
+                STACK_PUSH(&context.stack, MAKE_NUMBER(result));
                 break;
             }
             case OP_SUB: {
@@ -119,6 +118,14 @@ void ch_run(ch_program program) {
                 READ_NUMBER(&context, &value);
                 uint8_t offset = (uint8_t) value;
                 ch_stack_copy(&context.stack, offset);
+                break;
+            }
+            case OP_DEBUG: {
+                ch_stack_entry entry;
+                STACK_POP(&context.stack, &entry);
+                if (entry.primitive == NUMBER) {
+                    printf("NUMBER: %f\n", entry.number_value);
+                }
                 break;
             }
             default: {

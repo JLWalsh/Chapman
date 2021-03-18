@@ -12,4 +12,6 @@ typedef enum {
     OP_DIV,
 
     OP_LOAD_LOCAL,
+
+    OP_DEBUG,
 } ch_op;

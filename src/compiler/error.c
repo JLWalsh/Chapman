@@ -6,6 +6,7 @@ void ch_tk_error(const char* message, const ch_token_state* state) {
     printf("Tokenization error (line %d): %s\n", state->line, message);
 }
 
-void ch_pr_error(const char* message, const ch_compilation* state) {
+void ch_pr_error(const char* message, ch_compilation* state) {
+    state->has_errors = true;
     printf("Parse error: %s\n", message);
 }

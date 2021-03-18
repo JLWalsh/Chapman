@@ -36,6 +36,10 @@ ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_mes
 void function(ch_compilation* comp);
 void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
+void scope(ch_compilation* comp);
+void statement(ch_compilation* comp);
+
+bool scope_lookup(ch_scope* scope, uint32_t name, uint8_t* offset);
 
 // Expression parsing
 void parse(ch_compilation* comp, ch_precedence_level prec);
@@ -57,21 +61,24 @@ ch_parse_rule rules[NUM_TOKENS] = {
 
 const ch_parse_rule* get_rule(ch_token_kind kind);
 
-ch_program ch_compile(const uint8_t* program, size_t program_size) {
-    ch_compilation comp = {.token_state=ch_token_init(program, program_size), .emit=ch_emit_create()};
+bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output) {
+    ch_scope global_scope = {.parent=NULL, .locals_size=0,.base_offset=0};
+    ch_compilation comp = {
+        .token_state=ch_token_init(program, program_size), 
+        .emit=ch_emit_create(),
+        .scope=&global_scope,
+        .has_errors=false,
+    };
 
     advance(&comp);
-    declaration(&comp);
-    expression(&comp);
-    consume(&comp, TK_SEMI, "Consume semi!!");
-    declaration(&comp);
-    expression(&comp);
-    consume(&comp, TK_SEMI, "Consume semi!!");
+    scope(&comp);
 
     consume(&comp, TK_EOF, "Expected end of file.");
     ch_emit_op(&comp.emit, OP_HALT);
 
-    return ch_assemble(&comp.emit);
+    *output = ch_assemble(&comp.emit);
+
+    return !comp.has_errors;
 }
 
 void advance(ch_compilation* comp) {
@@ -100,32 +107,76 @@ void function(ch_compilation* comp) {
 void identifier(ch_compilation* comp) {
     ch_token name = comp->previous;
     uint32_t hashed_name = ch_hashstring(name.lexeme.start, name.lexeme.size);
-    ch_scope* scope = &comp->scope;
 
-    for(uint8_t i = 0; i < scope->locals_size; i++) {
-        if (scope->locals[i].hashed_name == hashed_name) {
-            ch_emit_op(&comp->emit, OP_LOAD_LOCAL);
-            ch_emit_number(&comp->emit, (double) i);
-            return;
-        }
+    uint8_t offset;
+    if (scope_lookup(comp->scope, hashed_name, &offset)) {
+        ch_emit_op(&comp->emit, OP_LOAD_LOCAL);
+        ch_emit_number(&comp->emit, (double) offset);
+        return;
     }
 
-    char message[100];
-    snprintf(message, sizeof(message), "Unresolved variable: %.*s", name.lexeme.size, name.lexeme.start);
+    char pattern[] = "Unresolved variable: %.*s";
+    char message[sizeof(pattern) + name.lexeme.size];
+    snprintf(message, sizeof(message), pattern, name.lexeme.size, name.lexeme.start);
     ch_pr_error(message, comp);
 }
 
 void declaration(ch_compilation* comp) {
-    consume(comp, TK_VAL, "Expected variable declaration");
+    consume(comp, TK_VAL, "Expected variable declaration.");
     ch_token name = consume(comp, TK_ID, "Expected variable name.");
     consume(comp, TK_EQ, "Expected variable initializer.");
 
     expression(comp);
 
-    ch_scope* scope = &comp->scope;
-    scope->locals[scope->locals_size++].hashed_name = ch_hashstring(name.lexeme.start, name.lexeme.size);
+    comp->scope->locals[comp->scope->locals_size++].hashed_name = ch_hashstring(name.lexeme.start, name.lexeme.size);
+}
 
-    consume(comp, TK_SEMI, "Expected semicolon.");
+void scope(ch_compilation* comp) {
+    consume(comp, TK_COPEN, "Expected start of scope.");
+
+    ch_scope current_scope = (ch_scope) {.locals_size=0,.parent=comp->scope,.base_offset=comp->scope->base_offset + comp->scope->locals_size };
+    comp->scope = &current_scope;
+
+    while(comp->current.kind != TK_CCLOSE) {
+        statement(comp);
+    }
+
+    comp->scope = current_scope.parent;
+
+    consume(comp, TK_CCLOSE, "Expected end of scope.");
+}
+
+bool scope_lookup(ch_scope* scope, uint32_t name, uint8_t* offset) {
+    for(uint8_t i = 0; i < scope->locals_size; i++) {
+        if (scope->locals[i].hashed_name == name) {
+            *offset = scope->base_offset + i;
+            return true;
+        }
+    }
+
+    if (scope->parent != NULL) {
+        return scope_lookup(scope->parent, name, offset);
+    }
+
+    return false;
+}
+
+void tempPrintExpression(ch_compilation* comp);
+void statement(ch_compilation* comp) {
+    if (comp->current.kind == TK_VAL) {
+        declaration(comp);
+    } else if (comp->current.kind == TK_COPEN) {
+        scope(comp);
+    } else { // TODO change this to read function invocation, for now we will just parse expressions and declarations
+        tempPrintExpression(comp);
+    }
+
+    consume(comp, TK_SEMI, "Expected semicolon at end of statement.");
+}
+
+void tempPrintExpression(ch_compilation* comp) {
+    expression(comp);
+    ch_emit_op(&comp->emit, OP_DEBUG);
 }
 
 void parse(ch_compilation* comp, ch_precedence_level prec) {
