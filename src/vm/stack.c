@@ -44,6 +44,16 @@ bool ch_stack_copy(ch_stack* stack, uint8_t index) {
     return true;
 }
 
+bool ch_stack_popn(ch_stack* stack, uint8_t n) {
+    if (stack->current - stack->start < n) {
+        return false;
+    }
+
+    stack->current -= n;
+
+    return true;
+}
+
 ch_stack ch_stack_create() {
     // TODO make stack size configurable upon startup
     size_t size = 1000 * sizeof(ch_stack_entry);

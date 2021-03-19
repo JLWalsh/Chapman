@@ -113,6 +113,15 @@ void ch_run(ch_program program) {
                 STACK_POP(&context.stack, &entry);
                 break;
             }
+            case OP_POPN: {
+                double value;
+                READ_NUMBER(&context, &value);
+                uint8_t num_popped = (uint8_t) value;
+
+                // TODO add runtime check?
+                ch_stack_popn(&context.stack, num_popped);
+                break;
+            }
             case OP_LOAD_LOCAL: {
                 double value;
                 READ_NUMBER(&context, &value);

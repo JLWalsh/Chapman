@@ -4,18 +4,16 @@
 #include <vm/chapman.h>
 #include <stdint.h>
 
-typedef struct ch_scope {
-    /*
-        The order of locals matters, because their index corresponds
-        to the offset in the stack they will be found at
-    */
-    struct ch_scope_locals{
-        uint32_t hashed_name;
-    } locals[UINT8_MAX];
-    uint8_t locals_size;
-    uint32_t base_offset;
+typedef struct {
+    ch_lexeme name;
+    uint8_t scope_id;
+} ch_local;
 
-    struct ch_scope* parent;
+typedef struct ch_scope {
+    ch_local locals[UINT8_MAX];
+
+    uint8_t locals_size;
+    uint8_t scope_id;
 } ch_scope;
 
 typedef struct {
@@ -24,7 +22,7 @@ typedef struct {
     ch_token current;
 
     ch_emit emit;
-    ch_scope* scope;
+    ch_scope scope;
 
     bool has_errors;
 } ch_compilation;

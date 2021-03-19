@@ -2,7 +2,6 @@
 #include "token.h"
 #include "error.h"
 #include "util.h"
-#include "hash.h"
 #include <vm/chapman.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -38,8 +37,10 @@ void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
 void scope(ch_compilation* comp);
 void statement(ch_compilation* comp);
+void begin_scope(ch_compilation* comp);
+void end_scope(ch_compilation* comp);
 
-bool scope_lookup(ch_scope* scope, uint32_t name, uint8_t* offset);
+bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset);
 
 // Expression parsing
 void parse(ch_compilation* comp, ch_precedence_level prec);
@@ -62,11 +63,11 @@ ch_parse_rule rules[NUM_TOKENS] = {
 const ch_parse_rule* get_rule(ch_token_kind kind);
 
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output) {
-    ch_scope global_scope = {.parent=NULL, .locals_size=0,.base_offset=0};
+    ch_scope global_scope = {.locals_size=0, .scope_id=0};
     ch_compilation comp = {
         .token_state=ch_token_init(program, program_size), 
         .emit=ch_emit_create(),
-        .scope=&global_scope,
+        .scope={.locals_size=0,.scope_id=0},
         .has_errors=false,
     };
 
@@ -106,10 +107,9 @@ void function(ch_compilation* comp) {
 
 void identifier(ch_compilation* comp) {
     ch_token name = comp->previous;
-    uint32_t hashed_name = ch_hashstring(name.lexeme.start, name.lexeme.size);
 
     uint8_t offset;
-    if (scope_lookup(comp->scope, hashed_name, &offset)) {
+    if (scope_lookup(comp, name.lexeme, &offset)) {
         ch_emit_op(&comp->emit, OP_LOAD_LOCAL);
         ch_emit_number(&comp->emit, (double) offset);
         return;
@@ -128,34 +128,53 @@ void declaration(ch_compilation* comp) {
 
     expression(comp);
 
-    comp->scope->locals[comp->scope->locals_size++].hashed_name = ch_hashstring(name.lexeme.start, name.lexeme.size);
+    if (comp->scope.locals_size == UINT8_MAX) {
+        ch_pr_error("Exceeded variable limit in scope.", comp);
+        return;
+    }
+
+    ch_local* local = &comp->scope.locals[comp->scope.locals_size++];
+    local->name = name.lexeme;
+    local->scope_id = comp->scope.scope_id;
 }
 
 void scope(ch_compilation* comp) {
     consume(comp, TK_COPEN, "Expected start of scope.");
 
-    ch_scope current_scope = (ch_scope) {.locals_size=0,.parent=comp->scope,.base_offset=comp->scope->base_offset + comp->scope->locals_size };
-    comp->scope = &current_scope;
+    uint8_t num_values_before = comp->scope.locals_size;
+    begin_scope(comp);
 
     while(comp->current.kind != TK_CCLOSE) {
         statement(comp);
     }
 
-    comp->scope = current_scope.parent;
+    end_scope(comp);
+    if (num_values_before != comp->scope.locals_size) {
+        uint8_t num_values_popped = comp->scope.locals_size - num_values_before;
+        comp->scope.locals_size = num_values_before;
+
+        ch_emit_op(&comp->emit, OP_POPN);
+        ch_emit_number(&comp->emit, (double) num_values_popped);
+    }
 
     consume(comp, TK_CCLOSE, "Expected end of scope.");
 }
 
-bool scope_lookup(ch_scope* scope, uint32_t name, uint8_t* offset) {
-    for(uint8_t i = 0; i < scope->locals_size; i++) {
-        if (scope->locals[i].hashed_name == name) {
-            *offset = scope->base_offset + i;
-            return true;
-        }
+bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
+    if (comp->scope.locals_size == 0) {
+        return false;
     }
 
-    if (scope->parent != NULL) {
-        return scope_lookup(scope->parent, name, offset);
+    for(uint8_t i = comp->scope.locals_size - 1; i >= 0; i--) {
+        ch_lexeme* value_name = &comp->scope.locals[i].name;
+        if (value_name->size != name.size) {
+            continue;
+        }
+
+        if (strncmp(value_name->start, name.start, MIN(value_name->size, name.size)) == 0) {
+            *offset = i;
+            return true;
+        }
     }
 
     return false;
@@ -172,6 +191,14 @@ void statement(ch_compilation* comp) {
     }
 
     consume(comp, TK_SEMI, "Expected semicolon at end of statement.");
+}
+
+void begin_scope(ch_compilation* comp) {
+    comp->scope.scope_id++;
+}
+
+void end_scope(ch_compilation* comp) {
+    comp->scope.scope_id--;
 }
 
 void tempPrintExpression(ch_compilation* comp) {

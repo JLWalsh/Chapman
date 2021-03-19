@@ -3,6 +3,7 @@
 typedef enum {
     OP_HALT,
     OP_POP,
+    OP_POPN,
 
     OP_NUMBER,
     OP_NEGATE,

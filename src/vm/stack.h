@@ -24,4 +24,6 @@ bool ch_stack_push(ch_stack* stack, ch_stack_entry entry);
 
 bool ch_stack_pop(ch_stack* stack, ch_stack_entry* popped);
 
+bool ch_stack_popn(ch_stack* stack, uint8_t n);
+
 bool ch_stack_copy(ch_stack* stack, uint8_t index);
