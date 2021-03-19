@@ -35,10 +35,11 @@ ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_mes
 void function(ch_compilation* comp);
 void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
+void add_local(ch_compilation* comp, ch_lexeme name);
 void scope(ch_compilation* comp);
 void statement(ch_compilation* comp);
-void begin_scope(ch_compilation* comp);
-void end_scope(ch_compilation* comp);
+uint8_t begin_scope(ch_compilation* comp);
+void end_scope(ch_compilation* comp, uint8_t parent_scope_size);
 
 bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset);
 
@@ -63,11 +64,10 @@ ch_parse_rule rules[NUM_TOKENS] = {
 const ch_parse_rule* get_rule(ch_token_kind kind);
 
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output) {
-    ch_scope global_scope = {.locals_size=0, .scope_id=0};
     ch_compilation comp = {
         .token_state=ch_token_init(program, program_size), 
         .emit=ch_emit_create(),
-        .scope={.locals_size=0,.scope_id=0},
+        .scope={.locals_size=0},
         .has_errors=false,
     };
 
@@ -128,34 +128,32 @@ void declaration(ch_compilation* comp) {
 
     expression(comp);
 
+    consume(comp, TK_SEMI, "Expected semicolon.");
+
+    add_local(comp, name.lexeme);
+}
+
+void add_local(ch_compilation* comp, ch_lexeme name) {
     if (comp->scope.locals_size == UINT8_MAX) {
         ch_pr_error("Exceeded variable limit in scope.", comp);
         return;
     }
 
     ch_local* local = &comp->scope.locals[comp->scope.locals_size++];
-    local->name = name.lexeme;
-    local->scope_id = comp->scope.scope_id;
+    local->name = name;
 }
 
 void scope(ch_compilation* comp) {
     consume(comp, TK_COPEN, "Expected start of scope.");
 
     uint8_t num_values_before = comp->scope.locals_size;
-    begin_scope(comp);
+    uint8_t scope_mark = begin_scope(comp);
 
     while(comp->current.kind != TK_CCLOSE) {
         statement(comp);
     }
 
-    end_scope(comp);
-    if (num_values_before != comp->scope.locals_size) {
-        uint8_t num_values_popped = comp->scope.locals_size - num_values_before;
-        comp->scope.locals_size = num_values_before;
-
-        ch_emit_op(&comp->emit, OP_POPN);
-        ch_emit_number(&comp->emit, (double) num_values_popped);
-    }
+    end_scope(comp, scope_mark);
 
     consume(comp, TK_CCLOSE, "Expected end of scope.");
 }
@@ -189,20 +187,25 @@ void statement(ch_compilation* comp) {
     } else { // TODO change this to read function invocation, for now we will just parse expressions and declarations
         tempPrintExpression(comp);
     }
-
-    consume(comp, TK_SEMI, "Expected semicolon at end of statement.");
 }
 
-void begin_scope(ch_compilation* comp) {
-    comp->scope.scope_id++;
+uint8_t begin_scope(ch_compilation* comp) {
+    return comp->scope.locals_size;
 }
 
-void end_scope(ch_compilation* comp) {
-    comp->scope.scope_id--;
+void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
+    if (last_scope_size != comp->scope.locals_size) {
+        uint8_t num_values_popped = comp->scope.locals_size - last_scope_size;
+        comp->scope.locals_size = last_scope_size;
+
+        ch_emit_op(&comp->emit, OP_POPN);
+        ch_emit_number(&comp->emit, (double) num_values_popped);
+    }
 }
 
 void tempPrintExpression(ch_compilation* comp) {
     expression(comp);
+    consume(comp, TK_SEMI, "Expected semicolon.");
     ch_emit_op(&comp->emit, OP_DEBUG);
 }
 

@@ -13,7 +13,6 @@ typedef struct ch_scope {
     ch_local locals[UINT8_MAX];
 
     uint8_t locals_size;
-    uint8_t scope_id;
 } ch_scope;
 
 typedef struct {
