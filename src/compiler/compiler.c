@@ -33,6 +33,7 @@ void advance(ch_compilation* comp);
 ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_message);
 
 void function(ch_compilation* comp);
+void function_arglist(ch_compilation* comp);
 void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
 void add_local(ch_compilation* comp, ch_lexeme name);
@@ -72,7 +73,7 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
     };
 
     advance(&comp);
-    scope(&comp);
+    function(&comp);
 
     consume(&comp, TK_EOF, "Expected end of file.");
     ch_emit_op(&comp.emit, OP_HALT);
@@ -101,7 +102,28 @@ ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_mes
 void function(ch_compilation* comp) {
     consume(comp, TK_POUND, "Expected start of function.");
     ch_token name = consume(comp, TK_ID, "Expected function name.");
+
+    uint8_t scope_mark = begin_scope(comp);
+
+    function_arglist(comp);
+
+    scope(comp);
+
+    end_scope(comp, scope_mark);
+}
+
+void function_arglist(ch_compilation* comp) {
     consume(comp, TK_POPEN, "Expected (.");
+
+    while(comp->current.kind != TK_PCLOSE) {
+        ch_token name = consume(comp, TK_ID, "Expected variable name.");
+        add_local(comp, name.lexeme);
+
+        if (comp->current.kind != TK_PCLOSE) {
+            consume(comp, TK_COMMA, "Expected comma.");
+        }
+    }
+
     consume(comp, TK_PCLOSE, "Expected ).");
 }
 
@@ -146,14 +168,9 @@ void add_local(ch_compilation* comp, ch_lexeme name) {
 void scope(ch_compilation* comp) {
     consume(comp, TK_COPEN, "Expected start of scope.");
 
-    uint8_t num_values_before = comp->scope.locals_size;
-    uint8_t scope_mark = begin_scope(comp);
-
     while(comp->current.kind != TK_CCLOSE) {
         statement(comp);
     }
-
-    end_scope(comp, scope_mark);
 
     consume(comp, TK_CCLOSE, "Expected end of scope.");
 }
@@ -183,7 +200,9 @@ void statement(ch_compilation* comp) {
     if (comp->current.kind == TK_VAL) {
         declaration(comp);
     } else if (comp->current.kind == TK_COPEN) {
+        uint8_t scope_mark = begin_scope(comp);
         scope(comp);
+        end_scope(comp, scope_mark);
     } else { // TODO change this to read function invocation, for now we will just parse expressions and declarations
         tempPrintExpression(comp);
     }
