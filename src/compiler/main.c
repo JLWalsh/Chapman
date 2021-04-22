@@ -1,12 +1,32 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <vm/chapman.h>
 #include "compiler.h"
 
-const char program[] = "#aFunc(){ val z = 30; { val x = 40; 10 + x; val y = 50; x + y; x+z; } val x = 20; x+x;}"; 
+char* load_program() {
+    FILE* file = fopen("tests/test.ch", "rb");
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    if (size == -1) {
+        return NULL;
+    }
+
+    char* program = malloc(size + 1);
+    fread(program, 1, size, file);
+    fclose(file);
+
+    program[size] = 0;
+
+    return program;
+}
 
 int main(void) {
+    char* program = load_program();
+
     ch_program compiled_program;
     if(!ch_compile(program, sizeof(program), &compiled_program)) {
         printf("Failed to compile program\n");

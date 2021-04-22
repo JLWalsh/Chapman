@@ -23,7 +23,7 @@ typedef struct {
     ch_emit emit;
     ch_scope scope;
 
-    bool has_errors;
+    bool is_panic;
 } ch_compilation;
 
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output);

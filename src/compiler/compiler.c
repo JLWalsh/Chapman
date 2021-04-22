@@ -31,6 +31,7 @@ typedef struct {
 
 void advance(ch_compilation* comp);
 ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_message);
+void panic(ch_compilation* comp, const char* error_message);
 
 void function(ch_compilation* comp);
 void function_arglist(ch_compilation* comp);
@@ -97,6 +98,29 @@ ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_mes
     }
 
     ch_pr_error(error_message, comp);
+}
+
+void panic(ch_compilation* comp, const char* error_message) {
+    comp->is_panic = true;
+    ch_pr_error(error_message, comp);
+}
+
+void synchronize(ch_compilation* comp) {
+    comp->is_panic = false;
+
+    while(comp->current.kind != TK_EOF) {
+        if (comp->previous.kind == TK_SEMI) return;
+        
+        switch(comp->current.kind) {
+            case TK_CCLOSE:
+            case TK_PCLOSE:
+            case TK_VAL:
+                return;
+
+            default:
+                advance();
+        }
+    }
 }
 
 void function(ch_compilation* comp) {
