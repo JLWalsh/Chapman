@@ -34,9 +34,9 @@ ch_token_state ch_token_init(const uint8_t* program, size_t size) {
 }
 
 bool ch_token_next(ch_token_state* state, ch_token* next) {
-    const char* start = state->current;
+    char* start = state->current;
 
-    while((intptr_t)state->current != (intptr_t)(state->program + state->size - 1)) {
+    while((intptr_t)state->current != (intptr_t)(state->program + state->size)) {
         char current = *state->current++;
 
         switch (current) {
@@ -75,6 +75,10 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
                 return true;
             case '\n':
                 state->line++;
+                start = state->current;
+                continue;
+            case '\r':
+                start = state->current;
                 continue;
             case '/':
                 if (*state->current == '/') {
@@ -92,7 +96,7 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
                 return true;
             default:
                 if (isspace(current)) {
-                    start++;
+                    start = state->current;
                     continue;
                 }
 
@@ -159,7 +163,7 @@ ch_token_kind ch_parse_token_kind(const char* token_start, size_t token_size) {
 }
 
 ch_token ch_get_token(const char* start, ch_token_state* state, ch_token_kind kind) {
-    ch_token token = {.kind=kind};
+    ch_token token = {.kind=kind,.line=state->line};
      
     if (tokens_with_lexemes[kind]) {
         token.lexeme = (ch_lexeme){.start=start, .size=state->current - start};

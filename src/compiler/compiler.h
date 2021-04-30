@@ -24,6 +24,7 @@ typedef struct {
     ch_scope scope;
 
     bool is_panic;
+    bool has_errors;
 } ch_compilation;
 
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output);

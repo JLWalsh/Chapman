@@ -45,6 +45,7 @@ typedef struct {
 typedef struct ch_token {
     ch_token_kind kind;
     ch_lexeme lexeme;
+    uint32_t line;
 } ch_token;
 
 typedef struct {

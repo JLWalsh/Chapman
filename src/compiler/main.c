@@ -28,7 +28,7 @@ int main(void) {
     char* program = load_program();
 
     ch_program compiled_program;
-    if(!ch_compile(program, sizeof(program), &compiled_program)) {
+    if(!ch_compile(program, strlen(program), &compiled_program)) {
         printf("Failed to compile program\n");
         return 0;
     }

@@ -30,8 +30,10 @@ typedef struct {
 } ch_parse_rule;
 
 void advance(ch_compilation* comp);
-ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_message);
+bool consume(ch_compilation* comp, ch_token_kind kind, const char* error_message, ch_token* out_token);
 void panic(ch_compilation* comp, const char* error_message);
+void synchronize_outside_function(ch_compilation* comp);
+void synchronize_in_function(ch_compilation* comp);
 
 void function(ch_compilation* comp);
 void function_arglist(ch_compilation* comp);
@@ -39,7 +41,7 @@ void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
 void add_local(ch_compilation* comp, ch_lexeme name);
 void scope(ch_compilation* comp);
-void statement(ch_compilation* comp);
+void function_statement(ch_compilation* comp);
 uint8_t begin_scope(ch_compilation* comp);
 void end_scope(ch_compilation* comp, uint8_t parent_scope_size);
 
@@ -70,13 +72,20 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
         .token_state=ch_token_init(program, program_size), 
         .emit=ch_emit_create(),
         .scope={.locals_size=0},
+        .is_panic=false,
         .has_errors=false,
     };
 
     advance(&comp);
-    function(&comp);
+    while (comp.current.kind != TK_EOF) {
+        if (comp.is_panic) {
+            synchronize_outside_function(&comp);
+        }
 
-    consume(&comp, TK_EOF, "Expected end of file.");
+        function(&comp);
+    }
+
+    consume(&comp, TK_EOF, "Expected end of file.", NULL);
     ch_emit_op(&comp.emit, OP_HALT);
 
     *output = ch_assemble(&comp.emit);
@@ -91,41 +100,74 @@ void advance(ch_compilation* comp) {
     while(!ch_token_next(&comp->token_state, &comp->current));
 }
 
-ch_token consume(ch_compilation* comp, ch_token_kind kind, const char* error_message) {
+bool consume(ch_compilation* comp, ch_token_kind kind, const char* error_message, ch_token* out_token) {
+    if (comp->is_panic) return false;
+
     if (comp->current.kind == kind) {
         advance(comp);
-        return comp->previous;
+
+        if (out_token != NULL) {
+            *out_token = comp->previous;
+        }
+
+        return true;
     }
 
-    ch_pr_error(error_message, comp);
+    panic(comp, error_message);
+    return false;
 }
 
 void panic(ch_compilation* comp, const char* error_message) {
     comp->is_panic = true;
+    comp->has_errors = true;
     ch_pr_error(error_message, comp);
 }
 
-void synchronize(ch_compilation* comp) {
+// Error recovery used when the error occurs outside a function declaration
+void synchronize_outside_function(ch_compilation* comp) {
     comp->is_panic = false;
 
     while(comp->current.kind != TK_EOF) {
         if (comp->previous.kind == TK_SEMI) return;
         
         switch(comp->current.kind) {
+            case TK_POUND:
             case TK_CCLOSE:
-            case TK_PCLOSE:
+                return;
+
+            default:
+                advance(comp);
+        }
+    }
+}
+
+// Error recovery used when the error occurs inside a function declaration
+void synchronize_in_function(ch_compilation* comp) {
+    comp->is_panic = false;
+
+    while(comp->current.kind != TK_EOF) {
+        switch(comp->current.kind) {
+            case TK_SEMI: {
+                // We want to restart parsing after the semi
+                advance(comp);
+                return;
+            }
+
+            // TODO add other keywords here (when implemented)
+            case TK_CCLOSE:
             case TK_VAL:
                 return;
 
             default:
-                advance();
+                advance(comp);
         }
     }
 }
 
 void function(ch_compilation* comp) {
-    consume(comp, TK_POUND, "Expected start of function.");
-    ch_token name = consume(comp, TK_ID, "Expected function name.");
+    consume(comp, TK_POUND, "Expected start of function.", NULL);
+    ch_token name;
+    if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
 
     uint8_t scope_mark = begin_scope(comp);
 
@@ -137,18 +179,19 @@ void function(ch_compilation* comp) {
 }
 
 void function_arglist(ch_compilation* comp) {
-    consume(comp, TK_POPEN, "Expected (.");
+    consume(comp, TK_POPEN, "Expected (.", NULL);
 
     while(comp->current.kind != TK_PCLOSE) {
-        ch_token name = consume(comp, TK_ID, "Expected variable name.");
+        ch_token name;
+        if(!consume(comp, TK_ID, "Expected variable name.", &name)) return;
         add_local(comp, name.lexeme);
 
         if (comp->current.kind != TK_PCLOSE) {
-            consume(comp, TK_COMMA, "Expected comma.");
+            consume(comp, TK_COMMA, "Expected comma.", NULL);
         }
     }
 
-    consume(comp, TK_PCLOSE, "Expected ).");
+    consume(comp, TK_PCLOSE, "Expected ).", NULL);
 }
 
 void identifier(ch_compilation* comp) {
@@ -164,24 +207,25 @@ void identifier(ch_compilation* comp) {
     char pattern[] = "Unresolved variable: %.*s";
     char message[sizeof(pattern) + name.lexeme.size];
     snprintf(message, sizeof(message), pattern, name.lexeme.size, name.lexeme.start);
-    ch_pr_error(message, comp);
+    panic(comp, message);
 }
 
 void declaration(ch_compilation* comp) {
-    consume(comp, TK_VAL, "Expected variable declaration.");
-    ch_token name = consume(comp, TK_ID, "Expected variable name.");
-    consume(comp, TK_EQ, "Expected variable initializer.");
+    consume(comp, TK_VAL, "Expected variable declaration.", NULL);
+    ch_token name;
+    if(!consume(comp, TK_ID, "Expected variable name.", &name)) return;
+    consume(comp, TK_EQ, "Expected variable initializer.", NULL);
 
     expression(comp);
 
-    consume(comp, TK_SEMI, "Expected semicolon.");
+    consume(comp, TK_SEMI, "Expected semicolon.", NULL);
 
     add_local(comp, name.lexeme);
 }
 
 void add_local(ch_compilation* comp, ch_lexeme name) {
     if (comp->scope.locals_size == UINT8_MAX) {
-        ch_pr_error("Exceeded variable limit in scope.", comp);
+        panic(comp, "Exceeded variable limit in scope.");
         return;
     }
 
@@ -190,13 +234,13 @@ void add_local(ch_compilation* comp, ch_lexeme name) {
 }
 
 void scope(ch_compilation* comp) {
-    consume(comp, TK_COPEN, "Expected start of scope.");
+    consume(comp, TK_COPEN, "Expected start of scope.", NULL);
 
-    while(comp->current.kind != TK_CCLOSE) {
-        statement(comp);
+    while(comp->current.kind != TK_CCLOSE && comp->current.kind != TK_EOF) {
+        function_statement(comp);
     }
 
-    consume(comp, TK_CCLOSE, "Expected end of scope.");
+    consume(comp, TK_CCLOSE, "Expected end of scope.", NULL);
 }
 
 bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
@@ -204,7 +248,7 @@ bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
         return false;
     }
 
-    for(uint8_t i = comp->scope.locals_size - 1; i >= 0; i--) {
+    for(int32_t i = comp->scope.locals_size - 1; i >= 0; i--) {
         ch_lexeme* value_name = &comp->scope.locals[i].name;
         if (value_name->size != name.size) {
             continue;
@@ -219,17 +263,18 @@ bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
     return false;
 }
 
-void tempPrintExpression(ch_compilation* comp);
-void statement(ch_compilation* comp) {
+void function_statement(ch_compilation* comp) {
     if (comp->current.kind == TK_VAL) {
         declaration(comp);
     } else if (comp->current.kind == TK_COPEN) {
         uint8_t scope_mark = begin_scope(comp);
         scope(comp);
         end_scope(comp, scope_mark);
-    } else { // TODO change this to read function invocation, for now we will just parse expressions and declarations
-        tempPrintExpression(comp);
+    } else {  
+        panic(comp, "Expected statement.");
     }
+
+    if (comp->is_panic) synchronize_in_function(comp);
 }
 
 uint8_t begin_scope(ch_compilation* comp) {
@@ -246,17 +291,17 @@ void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
     }
 }
 
-void tempPrintExpression(ch_compilation* comp) {
-    expression(comp);
-    consume(comp, TK_SEMI, "Expected semicolon.");
-    ch_emit_op(&comp->emit, OP_DEBUG);
-}
+// void tempPrintExpression(ch_compilation* comp) {
+//     expression(comp);
+//     consume(comp, TK_SEMI, "Expected semicolon.", NULL);
+//     ch_emit_op(&comp->emit, OP_DEBUG);
+// }
 
 void parse(ch_compilation* comp, ch_precedence_level prec) {
     advance(comp);
     ch_parse_func prefix = get_rule(comp->previous.kind)->prefix_parse;
     if (!prefix) {
-        ch_pr_error("Expected expression.", comp);
+        panic(comp, "Expected expression");
         return;
     }
 
@@ -271,7 +316,7 @@ void parse(ch_compilation* comp, ch_precedence_level prec) {
 
 void grouping(ch_compilation* comp) {
     expression(comp);
-    consume(comp, TK_PCLOSE, "Expected closing parenthesis.");
+    consume(comp, TK_PCLOSE, "Expected closing parenthesis.", NULL);
 }
 
 void expression(ch_compilation* comp) {
