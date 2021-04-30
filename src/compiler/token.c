@@ -12,8 +12,9 @@ typedef struct {
 } ch_keyword;
 
 const ch_keyword keywords[] = {
-    { "val", TK_VAL },
-    { "var", TK_VAR },
+    { "val",    TK_VAL },
+    { "var",    TK_VAR },
+    { "return", TK_RETURN}
 };
 
 // Unspecified tokens are set to false by default

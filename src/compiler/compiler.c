@@ -54,6 +54,7 @@ void expression(ch_compilation* comp);
 void binary(ch_compilation* comp);
 void unary(ch_compilation* comp);
 void number(ch_compilation* comp);
+void return_statement(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN]  = {PREC_NONE,   grouping,   NULL},
@@ -62,7 +63,7 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_FSLASH] = {PREC_FACTOR, NULL,       binary},
     [TK_STAR]   = {PREC_FACTOR, NULL,       binary},
     [TK_NUM]    = {PREC_NONE,   number,     NULL},
-    [TK_ID]     = {PREC_NONE,   identifier, NULL}
+    [TK_ID]     = {PREC_NONE,   identifier, NULL},
 };
 
 const ch_parse_rule* get_rule(ch_token_kind kind);
@@ -264,14 +265,24 @@ bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
 }
 
 void function_statement(ch_compilation* comp) {
-    if (comp->current.kind == TK_VAL) {
-        declaration(comp);
-    } else if (comp->current.kind == TK_COPEN) {
-        uint8_t scope_mark = begin_scope(comp);
-        scope(comp);
-        end_scope(comp, scope_mark);
-    } else {  
-        panic(comp, "Expected statement.");
+    ch_token_kind kind = comp->current.kind;
+
+    switch(comp->current.kind) {
+        case TK_VAL: {
+            declaration(comp);
+            break;
+        }
+        case TK_COPEN: {
+            uint8_t scope_mark = begin_scope(comp);
+            scope(comp);
+            end_scope(comp, scope_mark);
+            break;
+        }
+        case TK_RETURN: {
+            return_statement(comp);
+            break;
+        }
+        default: panic(comp, "Expected statement.");
     }
 
     if (comp->is_panic) synchronize_in_function(comp);
@@ -291,12 +302,6 @@ void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
     }
 }
 
-// void tempPrintExpression(ch_compilation* comp) {
-//     expression(comp);
-//     consume(comp, TK_SEMI, "Expected semicolon.", NULL);
-//     ch_emit_op(&comp->emit, OP_DEBUG);
-// }
-
 void parse(ch_compilation* comp, ch_precedence_level prec) {
     advance(comp);
     ch_parse_func prefix = get_rule(comp->previous.kind)->prefix_parse;
@@ -312,6 +317,10 @@ void parse(ch_compilation* comp, ch_precedence_level prec) {
         ch_parse_func infix = get_rule(comp->previous.kind)->infix_parse;
         infix(comp);
     }
+}
+
+const ch_parse_rule* get_rule(ch_token_kind kind) {
+    return &rules[kind];
 }
 
 void grouping(ch_compilation* comp) {
@@ -360,6 +369,16 @@ void number(ch_compilation* comp) {
     ch_emit_number(&comp->emit, value);
 }
 
-const ch_parse_rule* get_rule(ch_token_kind kind) {
-    return &rules[kind];
+void return_statement(ch_compilation* comp) {
+    consume(comp, TK_RETURN, "Expected return statement.", NULL);
+
+    // Return statement without expression
+    if (comp->current.kind == TK_SEMI) {
+        ch_emit_op(&comp->emit, OP_RETURN_VOID);
+        return;
+    }
+
+    // Return statement with expression
+    expression(comp);
+    ch_emit_op(&comp->emit, OP_RETURN_VALUE);
 }

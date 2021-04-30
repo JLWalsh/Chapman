@@ -57,11 +57,23 @@ bool ch_stack_popn(ch_stack* stack, uint8_t n) {
 ch_stack ch_stack_create() {
     // TODO make stack size configurable upon startup
     size_t size = 1000 * sizeof(ch_stack_entry);
-    uint8_t* start = malloc(size);
+    void* start = malloc(size);
 
     return (ch_stack) {
         .start=start,
         .end=start + size,
         .current=start,
     };
+}
+
+bool ch_stack_set_addr(ch_stack* stack, ch_stack_addr addr) {
+    ch_stack_entry* resolved_address = stack->start + addr;
+    if (resolved_address < stack->start || resolved_address >= stack->end) return false;
+
+    stack->current = resolved_address;
+    return true;
+}
+
+ch_stack_addr ch_stack_get_addr(ch_stack* stack) {
+    return stack->current - stack->start;
 }

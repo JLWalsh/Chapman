@@ -13,6 +13,8 @@ typedef enum {
     OP_DIV,
 
     OP_LOAD_LOCAL,
+    OP_RETURN_VOID,
+    OP_RETURN_VALUE,
 
     OP_DEBUG,
 } ch_op;

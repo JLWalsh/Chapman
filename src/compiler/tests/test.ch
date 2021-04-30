@@ -1,7 +1,5 @@
 #main() {
     val y = 20;
-wefuihwef
-efwoijewf
     return addTwo(y);
 }
 
