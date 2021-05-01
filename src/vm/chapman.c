@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
+bool program_ptr_is_safe(ch_context* context, uint8_t* program_ptr);
+
 void halt(ch_context* context, ch_exit reason) {
     context->exit = reason;
 }
@@ -52,14 +54,12 @@ ch_context create_context(ch_program program) {
         return; \
     } \
 
+#define IS_NUMBER(stack_entry) (stack_entry.primitive == NUMBER)
+#define AS_NUMBER(stack_entry) (stack_entry.number_value)
+
 void vm_call(ch_context* context, uint8_t* call_ip, ch_argcount argcount) {
     if (context->call_stack.size == CH_CALL_STACK_SIZE) {
         halt(context, EXIT_CALL_STACK_SIZE_EXCEEDED);
-        return;
-    }
-
-    if (call_ip < context->pstart || call_ip >= context->pend) {
-        halt(context, EXIT_INVALID_INSTRUCTION_POINTER);
         return;
     }
 
@@ -68,10 +68,15 @@ void vm_call(ch_context* context, uint8_t* call_ip, ch_argcount argcount) {
         return;
     }
 
+    if (!ch_program_ptr_is_safe(context, call_ip)) {
+        halt(context, EXIT_INVALID_INSTRUCTION_POINTER);
+        return;
+    }
+
     context->call_stack.size++;
     ch_call* call = &context->call_stack.calls[context->call_stack.size - 1];
     *call = (ch_call) {
-        .ip_addr=context->pcurrent,
+        .call_ip=call_ip,
         .stack_addr=ch_stack_get_addr(&context->stack) - argcount,
     };
 
@@ -91,7 +96,7 @@ void vm_return(ch_context* context, bool return_with_value) {
     }
 
     ch_call* call = &context->call_stack.calls[context->call_stack.size - 1];
-    context->pcurrent = call->ip_addr;
+    context->pcurrent = call->call_ip;
 
     // TODO check if set fails
     ch_stack_set_addr(&context->stack, call->stack_addr);
@@ -103,6 +108,7 @@ void vm_return(ch_context* context, bool return_with_value) {
 
 void ch_run(ch_program program) {
     ch_context context = create_context(program);
+    vm_call(&context, 0, 0);
 
     while(context.exit == RUNNING) {
         uint8_t current = *(context.pcurrent);
@@ -180,6 +186,23 @@ void ch_run(ch_program program) {
                 ch_stack_copy(&context.stack, offset);
                 break;
             }
+            case OP_CALL: {
+                double raw_argcount;
+                READ_NUMBER(&context, &raw_argcount);
+                ch_argcount argcount = (ch_argcount) raw_argcount;
+
+                ch_stack_entry entry;
+                STACK_POP(&context, &entry);
+                if (!IS_NUMBER(entry)) {
+                    halt(&context, EXIT_INCORRECT_TYPE);
+                    return;
+                }
+                uint32_t offset = (uint32_t) AS_NUMBER(entry);
+                uint8_t* address = context.pstart + offset;
+                
+                vm_call(&context, address, argcount);
+                break;
+            }
             case OP_RETURN_VALUE: {
                 vm_return(&context, true);
                 break;
@@ -191,8 +214,8 @@ void ch_run(ch_program program) {
             case OP_DEBUG: {
                 ch_stack_entry entry;
                 STACK_POP(&context, &entry);
-                if (entry.primitive == NUMBER) {
-                    printf("NUMBER: %f\n", entry.number_value);
+                if (IS_NUMBER(entry)) {
+                    printf("NUMBER: %f\n", AS_NUMBER(entry));
                 }
                 break;
             }
@@ -208,4 +231,8 @@ void ch_run(ch_program program) {
     } else {
         printf("Program has halted.\n");
     }
+}
+
+bool program_ptr_is_safe(ch_context* context, uint8_t* program_ptr) {
+    return program_ptr >= context->pstart && program_ptr < context->pend;
 }

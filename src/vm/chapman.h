@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "stack.h"
 #include "ops.h"
+#include "function.h"
 
 typedef enum {
     RUNNING,
@@ -13,6 +14,7 @@ typedef enum {
     EXIT_CALL_STACK_SIZE_EXCEEDED,
     EXIT_INVALID_INSTRUCTION_POINTER,
     EXIT_NOT_ENOUGH_ARGS_IN_STACK,
+    EXIT_INCORRECT_TYPE,
 } ch_exit;
 
 #define CH_DATAPTR_NULL 0
@@ -26,7 +28,7 @@ typedef struct {
 } ch_program;
 
 typedef struct {
-    uint8_t* ip_addr;
+    uint8_t* call_ip;
     ch_stack_addr stack_addr;
 } ch_call;
 
