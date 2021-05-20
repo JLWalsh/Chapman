@@ -1,6 +1,7 @@
 set(VM_SOURCE_FILES 
     chapman.c
     stack.c
+    hash.c
 )
 
 add_library(vm ${VM_SOURCE_FILES})

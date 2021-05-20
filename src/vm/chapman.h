@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include "stack.h"
 #include "ops.h"
-#include "function.h"
 
 typedef enum {
     RUNNING,
@@ -23,8 +22,10 @@ typedef uint32_t ch_dataptr;
 typedef uint8_t ch_argcount;
 
 typedef struct {
+    // The data section comes first, then the program section after
     uint8_t* start;
-    size_t size;
+    size_t data_size;
+    size_t total_size;
 } ch_program;
 
 typedef struct {
@@ -42,6 +43,8 @@ typedef struct {
     uint8_t* pstart;
     uint8_t* pend;
     uint8_t* pcurrent;
+    uint8_t* data_start;
+    size_t data_size;
 
     ch_stack stack;
     ch_call_stack call_stack;

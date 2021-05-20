@@ -364,9 +364,10 @@ void number(ch_compilation* comp) {
     const char* start = comp->previous.lexeme.start;
 
     double value = strtod(start, NULL);
+    ch_dataptr value_ptr = ch_emit_data(&comp->emit, &value, sizeof(value));
 
     ch_emit_op(&comp->emit, OP_NUMBER);
-    ch_emit_number(&comp->emit, value);
+    ch_emit_ptr(&comp->emit, value_ptr);
 }
 
 void return_statement(ch_compilation* comp) {

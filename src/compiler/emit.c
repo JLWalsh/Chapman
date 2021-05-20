@@ -26,7 +26,7 @@ ch_program ch_assemble(ch_emit* emit) {
     emit->bytecode.start = NULL;
     emit->data.start = NULL;
 
-    return (ch_program) {.start=program, .size=program_size};
+    return (ch_program) {.start=program, .data_size=data_size, .total_size=program_size};
 }
 
 ch_dataptr ch_emit_data(ch_emit* emit, void* data_start, size_t data_size) {
@@ -41,10 +41,6 @@ void ch_emit_op(ch_emit* emit, ch_op op) {
 void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr) {
     // TODO account for endianess when writing
     ch_blob_write(&emit->bytecode, &ptr, sizeof(ch_dataptr));
-}
-
-void ch_emit_number(ch_emit* emit, double value) {
-    ch_blob_write(&emit->bytecode, &value, sizeof(double));
 }
 
 ch_blob ch_blob_init(size_t initial_size) {
