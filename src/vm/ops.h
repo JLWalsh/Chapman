@@ -18,5 +18,7 @@ typedef enum {
     OP_RETURN_VOID,
     OP_RETURN_VALUE,
 
+    OP_FUNCTION,
+
     OP_DEBUG,
 } ch_op;

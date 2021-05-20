@@ -7,7 +7,12 @@
 // Reads a 4 byte pointer (offset from 0) in little endian layout
 #define READ_PTR(context) ( \
     (context)->pcurrent += 4,\
-    (uint32_t) ((context)->pcurrent[0] & (context)->pcurrent[1] << 8 & (context)->pcurrent[2] << 16 & (context)->pcurrent[3] << 24) \
+    (ch_dataptr) ((context)->pcurrent[0] & (context)->pcurrent[1] << 8 & (context)->pcurrent[2] << 16 & (context)->pcurrent[3] << 24) \
+    ) \
+
+#define READ_ARGCOUNT(context) ( \
+    (context)->pcurrent += 1, \
+    (ch_argcount) ((context)->pcurrent[0]) \
     ) \
 
 // TODO do memory bounds check?
@@ -61,7 +66,6 @@ ch_context create_context(ch_program program) {
 
 void ch_run(ch_program program) {
     ch_context context = create_context(program);
-    vm_call(&context, 0, 0);
 
     while(context.exit == RUNNING) {
         uint8_t current = *(context.pcurrent);
@@ -139,10 +143,14 @@ void ch_run(ch_program program) {
                 ch_stack_copy(&context.stack, offset);
                 break;
             }
+            case OP_FUNCTION: {
+                ch_dataptr function_ptr = READ_PTR(&context);
+                ch_argcount argcount = READ_ARGCOUNT(&context);
+                STACK_PUSH(&context, MAKE_FUNCTION(function_ptr, argcount));
+                break;
+            }
             case OP_CALL: {
-                double raw_argcount;
-                READ_NUMBER(&context, &raw_argcount);
-                ch_argcount argcount = (ch_argcount) raw_argcount;
+                ch_argcount argcount = READ_ARGCOUNT(&context);
 
                 ch_object entry;
                 STACK_POP(&context, &entry);
@@ -153,15 +161,12 @@ void ch_run(ch_program program) {
                 uint32_t offset = (uint32_t) AS_NUMBER(entry);
                 uint8_t* address = context.pstart + offset;
                 
-                vm_call(&context, address, argcount);
                 break;
             }
             case OP_RETURN_VALUE: {
-                vm_return(&context, true);
                 break;
             }
             case OP_RETURN_VOID: {
-                vm_return(&context, false);
                 break;
             }
             case OP_DEBUG: {

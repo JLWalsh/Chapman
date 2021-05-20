@@ -4,43 +4,84 @@
 #include <string.h>
 #include <stddef.h>
 
-ch_dataptr blob_write(ch_blob* blob, void* data_start, size_t write_size);
+#define INITIAL_BLOB_SIZE 10000
+#define BLOB_CONTENT_SIZE(blob_ptr) ((blob_ptr)->current - (blob_ptr)->start)
+
+ch_blob create_blob();
+ch_dataptr write_blob(ch_blob* blob, void* data_start, size_t write_size);
 void free_blob(ch_blob* blob);
 
-ch_program ch_assemble(ch_blob* data, ch_blob* bytecode) {
-    size_t program_size = data->size + bytecode->size;
+ch_emit ch_emit_create() {
+    return (ch_emit) {
+        .function_scope=NULL,
+        .data=create_blob(),
+        .function_bytecode=create_blob(),
+    };
+}
+
+void ch_emit_create_function(ch_emit* emit, ch_function_scope* out_function) {
+    out_function->bytecode = create_blob();
+    out_function->parent = emit->function_scope;
+
+    emit->function_scope = out_function;
+}
+
+ch_dataptr ch_emit_commit_function(ch_emit* emit) {
+    // TODO check if function_ptr exceeds UINT32_MAX (of ch_dataptr)
+    // TODO check if function_scope is not NULL
+
+    ch_blob* bytecode = &emit->function_scope->bytecode;
+    ch_dataptr function_ptr = write_blob(&emit->function_bytecode, bytecode->start, BLOB_CONTENT_SIZE(bytecode));
+
+    free_blob(bytecode);
+    emit->function_scope = emit->function_scope->parent;
+
+    return function_ptr;
+}
+
+ch_program ch_emit_assemble(ch_emit* emit) {
+    // TODO ensure function_scope is NULL
+    size_t program_size = emit->data.size + emit->function_bytecode.size;
 
     uint8_t* program = (uint8_t*) malloc(program_size);
-    memcpy(program, data->start, data->size);
-    memcpy(program + data->size, bytecode->start, bytecode->size);
+    memcpy(program, emit->data.start, emit->data.size);
+    memcpy(program + emit->data.size, emit->function_bytecode.start, emit->function_bytecode.size);
 
-    free_blob(data);
-    free_blob(bytecode);
+    free_blob(&emit->data);
+    free_blob(&emit->function_bytecode);
 
-    return (ch_program) {.start=program, .data_size=data->size, .total_size=program_size};
+    return (ch_program) {.start=program, .data_size=emit->data.size, .total_size=program_size};
 }
 
-void ch_emit_op(ch_blob* blob, ch_op op) {
+void ch_emit_op(ch_emit* emit, ch_op op) {
     // Using sizeof(ch_op) would be unreliable, as enum sizes are compiler-dependent
-    ch_blob_write(blob, &op, 1);
+    write_blob(&emit->function_scope->bytecode, &op, 1);
 }
 
-void ch_emit_ptr(ch_blob* blob, ch_dataptr ptr) {
+void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr) {
     // TODO account for endianess when writing
-    ch_blob_write(blob, &ptr, sizeof(ch_dataptr));
+    write_blob(&emit->function_scope->bytecode, &ptr, sizeof(ch_dataptr));
 }
 
-ch_dataptr ch_emit_double(ch_blob* blob, double value) {
-    return ch_blob_write(blob, &value, sizeof(double));
+void ch_emit_argcount(ch_emit* emit, ch_argcount argcount) {
+    write_blob(&emit->function_scope->bytecode, &argcount, sizeof(ch_argcount));
 }
 
-ch_blob ch_create_blob(size_t initial_size) {
-    uint8_t* start = (uint8_t*)malloc(initial_size);
-    return (ch_blob) {.start=start, .current=start, .size=initial_size};
+ch_dataptr ch_emit_double(ch_emit* emit, double value) {
+    return write_blob(&emit->data, &value, sizeof(double));
 }
 
-ch_dataptr blob_write(ch_blob* blob, void* data_start, size_t write_size) {
-    uint32_t new_size = (ptrdiff_t) (blob->current - blob->start) + write_size;
+ch_blob create_blob() {
+    uint8_t* start = malloc(INITIAL_BLOB_SIZE);
+    return (ch_blob) {
+        .size=INITIAL_BLOB_SIZE,
+        .start=start,
+        .current=start,
+    };
+}
+
+ch_dataptr write_blob(ch_blob* blob, void* data_start, size_t write_size) {
+    uint32_t new_size = BLOB_CONTENT_SIZE(blob) + write_size;
     // TODO reintroduce exceeded capacity check
     //if (new_size >= CH_DATAPTR_MAX) {
         //return CH_DATAPTR_NULL;
@@ -48,7 +89,9 @@ ch_dataptr blob_write(ch_blob* blob, void* data_start, size_t write_size) {
 
     if (new_size >= blob->size) {
         size_t max_new_size = MAX(blob->size * CH_BLOB_BUFFER_GROWTH_MULTIPLIER, new_size);
-        realloc((void*) blob->start, MIN(CH_DATAPTR_MAX, max_new_size));
+        // TODO check how realloc changes blob->start pointer
+        blob->start = realloc((void*) blob->start, MIN(CH_DATAPTR_MAX, max_new_size));
+        blob->current = blob->start + BLOB_CONTENT_SIZE(blob);
     }
 
     ch_dataptr write_ptr = blob->current - blob->start;

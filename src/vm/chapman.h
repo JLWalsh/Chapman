@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include "stack.h"
 #include "ops.h"
+#include "defs.h"
 
 typedef enum {
     RUNNING,
@@ -15,11 +16,6 @@ typedef enum {
     EXIT_NOT_ENOUGH_ARGS_IN_STACK,
     EXIT_INCORRECT_TYPE,
 } ch_exit;
-
-#define CH_DATAPTR_NULL 0
-#define CH_DATAPTR_MAX UINT32_MAX
-typedef uint32_t ch_dataptr;
-typedef uint8_t ch_argcount;
 
 typedef struct {
     // The data section comes first, then the program section after

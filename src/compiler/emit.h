@@ -12,14 +12,29 @@ typedef struct {
     size_t size;
 } ch_blob;
 
-ch_program ch_assemble(ch_blob* data, ch_blob* bytecode);
+typedef struct ch_function_scope {
+    ch_blob bytecode;
+    struct ch_function_scope* parent;
+} ch_function_scope;
 
-ch_blob ch_create_blob(size_t initial_size);
+typedef struct {
+    ch_function_scope* function_scope;
+    ch_blob function_bytecode;
+    ch_blob data;
+} ch_emit;
 
-ch_blob ch_merge_blobs(ch_blob* blobs, uint8_t blob_count);
+ch_emit ch_emit_create();
 
-void ch_emit_op(ch_blob* blob, ch_op op);
+void ch_emit_create_function(ch_emit* emit, ch_function_scope* out_function);
 
-void ch_emit_ptr(ch_blob* blob, ch_dataptr ptr);
+ch_dataptr ch_emit_commit_function(ch_emit* emit);
 
-ch_dataptr ch_emit_double(ch_blob* blob, double value);
+ch_program ch_emit_assemble(ch_emit* emit);
+
+void ch_emit_op(ch_emit* emit, ch_op op);
+
+void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr);
+
+void ch_emit_argcount(ch_emit* emit, ch_argcount argcount);
+
+ch_dataptr ch_emit_double(ch_emit* emit, double value);

@@ -1,8 +1,9 @@
 #main() {
     val y = 20;
-    return addTwo(y);
-}
 
-#addTwo(x) {
-    return x + 2;
+    #addTwo(x) {
+        return x + 2;
+    };
+
+    return y + 2;
 }
