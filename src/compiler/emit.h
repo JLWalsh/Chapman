@@ -12,17 +12,14 @@ typedef struct {
     size_t size;
 } ch_blob;
 
-typedef struct {
-    ch_blob data;
-    ch_blob bytecode;
-} ch_emit;
+ch_program ch_assemble(ch_blob* data, ch_blob* bytecode);
 
-ch_emit ch_emit_create();
+ch_blob ch_create_blob(size_t initial_size);
 
-ch_program ch_assemble(ch_emit* emit);
+ch_blob ch_merge_blobs(ch_blob* blobs, uint8_t blob_count);
 
-ch_dataptr ch_emit_data(ch_emit* emit, void* data_start, size_t data_size);
+void ch_emit_op(ch_blob* blob, ch_op op);
 
-void ch_emit_op(ch_emit* emit, ch_op op);
+void ch_emit_ptr(ch_blob* blob, ch_dataptr ptr);
 
-void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr);
+ch_dataptr ch_emit_double(ch_blob* blob, double value);

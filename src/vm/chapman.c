@@ -4,9 +4,14 @@
 #include <string.h>
 #include <stdio.h>
 
-#define READ_PTR(context) ((uint32_t) (context->pcurrent++ & context->pcurrent++ << 8 & context->pcurrent++ << 16 & context->pcurrent++ << 24))
+// Reads a 4 byte pointer (offset from 0) in little endian layout
+#define READ_PTR(context) ( \
+    (context)->pcurrent += 4,\
+    (uint32_t) ((context)->pcurrent[0] & (context)->pcurrent[1] << 8 & (context)->pcurrent[2] << 16 & (context)->pcurrent[3] << 24) \
+    ) \
+
 // TODO do memory bounds check?
-#define LOAD_NUMBER(context, ptr) (*((double*) (context->pstart[ptr])))
+#define LOAD_NUMBER(context, ptr) (*((double*) ((context)->pstart[ptr])))
 
 void halt(ch_context* context, ch_exit reason) {
     context->exit = reason;
@@ -64,7 +69,7 @@ void ch_run(ch_program program) {
         
         switch(current) {
             case OP_NUMBER: {
-                double value = LOAD_NUMBER(context, READ_PTR(context));
+                double value = LOAD_NUMBER(&context, READ_PTR(&context));
                 READ_NUMBER(&context, &value);
                 STACK_PUSH(&context, MAKE_NUMBER(value));
                 break;

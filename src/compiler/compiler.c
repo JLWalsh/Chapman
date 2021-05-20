@@ -7,6 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+// TODO review these values
+#define INITIAL_FUNCTION_BYTECODE_SIZE 10000
+#define INITIAL_DATA_BLOB_SIZE 20000
+
+#define CURRENT_BLOB(comp_ptr) (&((comp_ptr)->blobscope->bytecode_blobs[0]))
+
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
@@ -45,6 +51,9 @@ void function_statement(ch_compilation* comp);
 uint8_t begin_scope(ch_compilation* comp);
 void end_scope(ch_compilation* comp, uint8_t parent_scope_size);
 
+void begin_blobscope(ch_compilation* comp, ch_blobscope* current);
+void end_blobscope(ch_compilation* comp);
+
 bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset);
 
 // Expression parsing
@@ -71,11 +80,15 @@ const ch_parse_rule* get_rule(ch_token_kind kind);
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output) {
     ch_compilation comp = {
         .token_state=ch_token_init(program, program_size), 
-        .emit=ch_emit_create(),
         .scope={.locals_size=0},
         .is_panic=false,
         .has_errors=false,
+        .blobscope=NULL,
+        .data_blob=ch_create_blob(INITIAL_DATA_BLOB_SIZE),
     };
+
+    ch_blobscope blobscope;
+    begin_blobscope(&comp, &blobscope);
 
     advance(&comp);
     while (comp.current.kind != TK_EOF) {
@@ -87,9 +100,9 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
     }
 
     consume(&comp, TK_EOF, "Expected end of file.", NULL);
-    ch_emit_op(&comp.emit, OP_HALT);
+    ch_emit_op(CURRENT_BLOB(&comp), OP_HALT);
 
-    *output = ch_assemble(&comp.emit);
+    *output = ch_assemble(&comp.data_blob, &comp.blobscope->bytecode_blobs[0]);
 
     return !comp.has_errors;
 }
@@ -165,7 +178,31 @@ void synchronize_in_function(ch_compilation* comp) {
     }
 }
 
+void begin_blobscope(ch_compilation* comp, ch_blobscope* current) {
+    // Blob 0 is the current function
+    current->bytecode_blobs[0] = ch_create_blob(INITIAL_FUNCTION_BYTECODE_SIZE);
+    current->num_blobs = 1;
+    current->parent = comp->blobscope;
+
+    comp->blobscope = current;
+}
+
+void end_blobscope(ch_compilation* comp) {
+    ch_blob merged_blobs = ch_merge_blobs(comp->blobscope->bytecode_blobs, comp->blobscope->num_blobs);
+    comp->blobscope = comp->blobscope->parent;
+
+    if (comp->blobscope->num_blobs >= MAX_FUNCTION_BLOBS) {
+        panic(comp, "Exceeded number of nested functions.");
+        return;
+    }
+
+    comp->blobscope->bytecode_blobs[comp->blobscope->num_blobs++] = merged_blobs;
+}
+
 void function(ch_compilation* comp) {
+    ch_blobscope blobscope;
+    begin_blobscope(comp, &blobscope);
+
     consume(comp, TK_POUND, "Expected start of function.", NULL);
     ch_token name;
     if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
@@ -177,6 +214,8 @@ void function(ch_compilation* comp) {
     scope(comp);
 
     end_scope(comp, scope_mark);
+
+    end_blobscope(comp);
 }
 
 void function_arglist(ch_compilation* comp) {
@@ -200,8 +239,8 @@ void identifier(ch_compilation* comp) {
 
     uint8_t offset;
     if (scope_lookup(comp, name.lexeme, &offset)) {
-        ch_emit_op(&comp->emit, OP_LOAD_LOCAL);
-        ch_emit_number(&comp->emit, (double) offset);
+        ch_emit_op(CURRENT_BLOB(comp), OP_LOAD_LOCAL);
+        ch_emit_number(CURRENT_BLOB(comp), (double) offset);
         return;
     }
 
@@ -297,8 +336,8 @@ void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
         uint8_t num_values_popped = comp->scope.locals_size - last_scope_size;
         comp->scope.locals_size = last_scope_size;
 
-        ch_emit_op(&comp->emit, OP_POPN);
-        ch_emit_number(&comp->emit, (double) num_values_popped);
+        ch_emit_op(CURRENT_BLOB(comp), OP_POPN);
+        ch_emit_number(CURRENT_BLOB(comp), (double) num_values_popped);
     }
 }
 
@@ -339,10 +378,10 @@ void binary(ch_compilation* comp) {
     parse(comp, (ch_precedence_level) (prec + 1));
 
     switch(kind) {
-        case TK_PLUS: ch_emit_op(&comp->emit, OP_ADD); break;
-        case TK_MINUS: ch_emit_op(&comp->emit, OP_SUB); break;
-        case TK_STAR: ch_emit_op(&comp->emit, OP_MUL); break;
-        case TK_FSLASH: ch_emit_op(&comp->emit, OP_DIV); break;
+        case TK_PLUS: ch_emit_op(CURRENT_BLOB(comp), OP_ADD); break;
+        case TK_MINUS: ch_emit_op(CURRENT_BLOB(comp), OP_SUB); break;
+        case TK_STAR: ch_emit_op(CURRENT_BLOB(comp), OP_MUL); break;
+        case TK_FSLASH: ch_emit_op(CURRENT_BLOB(comp), OP_DIV); break;
         default:
             return;
     }
@@ -354,7 +393,7 @@ void unary(ch_compilation* comp) {
     parse(comp, PREC_UNARY);
 
     switch(kind) {
-        case TK_MINUS: ch_emit_op(&comp->emit, OP_NEGATE); break;
+        case TK_MINUS: ch_emit_op(CURRENT_BLOB(comp), OP_NEGATE); break;
         default:
             return;
     }
@@ -364,10 +403,10 @@ void number(ch_compilation* comp) {
     const char* start = comp->previous.lexeme.start;
 
     double value = strtod(start, NULL);
-    ch_dataptr value_ptr = ch_emit_data(&comp->emit, &value, sizeof(value));
+    ch_dataptr value_ptr = ch_emit_double(&comp->data_blob, value);
 
-    ch_emit_op(&comp->emit, OP_NUMBER);
-    ch_emit_ptr(&comp->emit, value_ptr);
+    ch_emit_op(CURRENT_BLOB(comp), OP_NUMBER);
+    ch_emit_ptr(CURRENT_BLOB(comp), value_ptr);
 }
 
 void return_statement(ch_compilation* comp) {
@@ -375,11 +414,11 @@ void return_statement(ch_compilation* comp) {
 
     // Return statement without expression
     if (comp->current.kind == TK_SEMI) {
-        ch_emit_op(&comp->emit, OP_RETURN_VOID);
+        ch_emit_op(CURRENT_BLOB(comp), OP_RETURN_VOID);
         return;
     }
 
     // Return statement with expression
     expression(comp);
-    ch_emit_op(&comp->emit, OP_RETURN_VALUE);
+    ch_emit_op(CURRENT_BLOB(comp), OP_RETURN_VALUE);
 }
