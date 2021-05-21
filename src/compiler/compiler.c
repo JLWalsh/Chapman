@@ -7,10 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// TODO review these values
-#define INITIAL_FUNCTION_BYTECODE_SIZE 10000
-#define INITIAL_DATA_BLOB_SIZE 20000
-
 #define GET_EMIT(comp_ptr) (&((comp_ptr)->emit))
 
 typedef enum {
@@ -45,13 +41,13 @@ void function(ch_compilation* comp);
 ch_argcount function_arglist(ch_compilation* comp);
 void identifier(ch_compilation* comp);
 void declaration(ch_compilation* comp);
-void add_local(ch_compilation* comp, ch_lexeme name);
 void scope(ch_compilation* comp);
 void function_statement(ch_compilation* comp);
+
 uint8_t begin_scope(ch_compilation* comp);
 void end_scope(ch_compilation* comp, uint8_t parent_scope_size);
-
 bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset);
+void add_local(ch_compilation* comp, ch_lexeme name);
 
 // Expression parsing
 void parse(ch_compilation* comp, ch_precedence_level prec);
@@ -61,6 +57,7 @@ void binary(ch_compilation* comp);
 void unary(ch_compilation* comp);
 void number(ch_compilation* comp);
 void return_statement(ch_compilation* comp);
+void invocation(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN]  = {PREC_NONE,   grouping,   NULL},
@@ -93,7 +90,6 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
     }
 
     consume(&comp, TK_EOF, "Expected end of file.", NULL);
-    //ch_emit_op(GET_EMIT(&comp), OP_HALT);
 
     *output = ch_emit_assemble(GET_EMIT(&comp));
 
@@ -180,17 +176,21 @@ void function(ch_compilation* comp) {
     if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
 
     uint8_t scope_mark = begin_scope(comp);
-
     ch_argcount argcount = function_arglist(comp);
-
     scope(comp);
-
     end_scope(comp, scope_mark);
 
+    // Ensure that all functions return
+    ch_emit_op(GET_EMIT(comp), OP_RETURN_VOID);
+
     ch_dataptr function_ptr = ch_emit_commit_function(&comp->emit);
-    ch_emit_op(GET_EMIT(comp), OP_FUNCTION);
-    ch_emit_ptr(GET_EMIT(comp), function_ptr);
-    ch_emit_argcount(GET_EMIT(comp), argcount);
+
+    // If the function isn't in another function, we don't emit these values
+    if (CH_EMIT_IS_SCOPED(&comp->emit)) {
+        ch_emit_op(GET_EMIT(comp), OP_FUNCTION);
+        ch_emit_ptr(GET_EMIT(comp), function_ptr);
+        ch_emit_argcount(GET_EMIT(comp), argcount);
+    }
 
     add_local(comp, name.lexeme);
 }
@@ -224,8 +224,18 @@ void identifier(ch_compilation* comp) {
 
     uint8_t offset;
     if (scope_lookup(comp, name.lexeme, &offset)) {
+        bool is_invocation = comp->current.kind == TK_POPEN;
+        if (is_invocation) {
+            invocation(comp);
+        }
+
         ch_emit_op(GET_EMIT(comp), OP_LOAD_LOCAL);
-        ch_emit_double(GET_EMIT(comp), (double) offset);
+        ch_emit_ptr(GET_EMIT(comp), offset);
+
+        if (is_invocation) {
+            ch_emit_op(GET_EMIT(comp), OP_CALL);
+        }
+
         return;
     }
 
@@ -233,6 +243,28 @@ void identifier(ch_compilation* comp) {
     char message[sizeof(pattern) + name.lexeme.size];
     snprintf(message, sizeof(message), pattern, name.lexeme.size, name.lexeme.start);
     panic(comp, message);
+}
+
+void invocation(ch_compilation* comp) {
+    consume(comp, TK_POPEN, "Expected start of invocation", NULL);
+
+    bool has_comma = false;
+    while(comp->current.kind != TK_PCLOSE && comp->current.kind != TK_EOF) {
+        expression(comp);
+        has_comma = false;
+
+        if (comp->current.kind == TK_COMMA) {
+            advance(comp);
+            has_comma = true;
+        }
+    }
+
+    if (has_comma) {
+        panic(comp, "Expected argument.");
+        return;
+    }
+
+    consume(comp, TK_PCLOSE, "Expected end of arguments list.", NULL);
 }
 
 void declaration(ch_compilation* comp) {

@@ -6,6 +6,8 @@
 #define CH_BLOB_BUFFER_GROWTH_MULTIPLIER 2
 #define CH_BLOB_BUFFER_INITIAL_SIZE 10000
 
+#define CH_EMIT_IS_SCOPED(emit_ptr) ((emit_ptr)->function_scope != NULL)
+
 typedef struct {
     uint8_t* start;
     uint8_t* current;

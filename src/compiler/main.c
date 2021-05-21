@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <vm/chapman.h>
 #include "compiler.h"
+#include <vm/disassembler.h>
 
 char* load_program() {
     FILE* file = fopen("tests/test.ch", "rb");
@@ -34,6 +35,7 @@ int main(void) {
     }
 
     //ch_run(compiled_program);
+    ch_disassemble(&compiled_program);
 
     return 0;
 }

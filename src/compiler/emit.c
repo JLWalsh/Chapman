@@ -41,16 +41,18 @@ ch_dataptr ch_emit_commit_function(ch_emit* emit) {
 
 ch_program ch_emit_assemble(ch_emit* emit) {
     // TODO ensure function_scope is NULL
-    size_t program_size = emit->data.size + emit->function_bytecode.size;
+    size_t data_size = emit->data.current - emit->data.start;
+    size_t bytecode_size = emit->function_bytecode.current - emit->function_bytecode.start;
+    size_t program_size = data_size + bytecode_size;
 
     uint8_t* program = (uint8_t*) malloc(program_size);
-    memcpy(program, emit->data.start, emit->data.size);
-    memcpy(program + emit->data.size, emit->function_bytecode.start, emit->function_bytecode.size);
+    memcpy(program, emit->data.start, data_size);
+    memcpy(program + data_size, emit->function_bytecode.start, bytecode_size);
 
     free_blob(&emit->data);
     free_blob(&emit->function_bytecode);
 
-    return (ch_program) {.start=program, .data_size=emit->data.size, .total_size=program_size};
+    return (ch_program) {.start=program, .data_size=data_size, .total_size=program_size};
 }
 
 void ch_emit_op(ch_emit* emit, ch_op op) {

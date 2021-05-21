@@ -21,4 +21,6 @@ typedef enum {
     OP_FUNCTION,
 
     OP_DEBUG,
+
+    NUMBER_OF_OPCODES,
 } ch_op;

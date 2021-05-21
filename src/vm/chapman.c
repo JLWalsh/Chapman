@@ -31,20 +31,15 @@ void halt(ch_context* context, ch_exit reason) {
     context->exit = reason;
 }
 
-void call(ch_context* context, ch_function function, ch_argcount argcount) {
-    /*
-        Check argcount
-        Move pointers
-
-    */
+void call(ch_context* context, ch_function function) {
     if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
         runtime_error(context, "Stack limit reached.");
         return;
     }
 
     ch_stack_addr stack_addr = CH_STACK_ADDR(&context->stack);
-    if (stack_addr < argcount) {
-        runtime_error(context, "Too few arguments to invoke function (expected %d, got %d).", argcount, stack_addr);
+    if (stack_addr < function.argcount) {
+        runtime_error(context, "Too few arguments to invoke function (expected %d, got %d).", function.argcount, stack_addr);
         return;
     }
 
@@ -56,18 +51,18 @@ void call(ch_context* context, ch_function function, ch_argcount argcount) {
 
     ch_call* call = &context->call_stack.calls[context->call_stack.size];
     call->return_addr = context->pcurrent;
-    call->stack_addr = stack_addr - argcount;
+    call->stack_addr = stack_addr - function.argcount;
 
     context->pcurrent = function_ptr;
 }
 
-void try_call(ch_context* context, ch_object object, ch_argcount argcount) {
+void try_call(ch_context* context, ch_object object) {
     if (!IS_FUNCTION(object)) {
         runtime_error(context, "Attempted to invoke type %d as a function.", object.type);
         return;
     }
 
-    call(context, AS_FUNCTION(object), argcount);
+    call(context, AS_FUNCTION(object));
 }
 
 void call_return(ch_context* context) {
@@ -169,16 +164,14 @@ void ch_run(ch_program program) {
                 break;
             }
             case OP_POPN: {
-                double value = LOAD_NUMBER(&context, READ_PTR(&context));
-                uint8_t num_popped = (uint8_t) value;
+                ch_dataptr num_popped = READ_PTR(&context);
 
                 // TODO add runtime check?
                 ch_stack_popn(&context.stack, num_popped);
                 break;
             }
             case OP_LOAD_LOCAL: {
-                double value = LOAD_NUMBER(&context, READ_PTR(&context));
-                uint8_t offset = (uint8_t) value;
+                uint8_t offset = (uint8_t) READ_PTR(&context);
                 ch_stack_copy(&context.stack, offset);
                 break;
             }
@@ -193,7 +186,7 @@ void ch_run(ch_program program) {
                 ch_object function;
                 STACK_POP(&context, &function);
 
-                try_call(&context, function, argcount);
+                try_call(&context, function);
                 break;
             }
             case OP_RETURN_VALUE: {
