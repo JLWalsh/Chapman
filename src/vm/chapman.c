@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 // Reads a 4 byte pointer (offset from 0) in little endian layout
 #define READ_PTR(context) ( \
@@ -16,21 +17,68 @@
     ) \
 
 // TODO do memory bounds check?
-#define LOAD_NUMBER(context, ptr) (*((double*) ((context)->pstart[ptr])))
+#define LOAD_NUMBER(context, ptr) (*((double*) (&(context)->pstart[ptr])))
+
+void runtime_error(ch_context* context, const char* error, ...) {
+    va_list args;
+    va_start(args, error);
+    vfprintf(stderr, error, args);
+    va_end(args);
+    fputs("\n", stderr);
+}
 
 void halt(ch_context* context, ch_exit reason) {
     context->exit = reason;
 }
 
-bool read_number(ch_context* context, double* value) {
-    if (context->pcurrent + sizeof(double) >= context->pend) {
-        return false;
+void call(ch_context* context, ch_function function, ch_argcount argcount) {
+    /*
+        Check argcount
+        Move pointers
+
+    */
+    if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
+        runtime_error(context, "Stack limit reached.");
+        return;
     }
 
-    memcpy(value, context->pcurrent, sizeof(double));
-    context->pcurrent += sizeof(double);
+    ch_stack_addr stack_addr = CH_STACK_ADDR(&context->stack);
+    if (stack_addr < argcount) {
+        runtime_error(context, "Too few arguments to invoke function (expected %d, got %d).", argcount, stack_addr);
+        return;
+    }
 
-    return true;
+    uint8_t* function_ptr = &context->pstart[function.ptr];
+    if (!IS_PROGRAM_PTR_SAFE(context, function_ptr)) {
+        runtime_error(context, "Function pointer exceeds bounds of program.");
+        return;
+    }
+
+    ch_call* call = &context->call_stack.calls[context->call_stack.size];
+    call->return_addr = context->pcurrent;
+    call->stack_addr = stack_addr - argcount;
+
+    context->pcurrent = function_ptr;
+}
+
+void try_call(ch_context* context, ch_object object, ch_argcount argcount) {
+    if (!IS_FUNCTION(object)) {
+        runtime_error(context, "Attempted to invoke type %d as a function.", object.type);
+        return;
+    }
+
+    call(context, AS_FUNCTION(object), argcount);
+}
+
+void call_return(ch_context* context) {
+   if (context->call_stack.size == 0) {
+       // TODO count this as exiting the program
+       return;
+   }
+
+   ch_call* call = &context->call_stack.calls[context->call_stack.size--];
+   context->pcurrent = call->return_addr;
+   ch_stack_seekto(&context->stack, call->stack_addr);
 }
 
 ch_context create_context(ch_program program) {
@@ -58,12 +106,6 @@ ch_context create_context(ch_program program) {
         break; \
     } \
 
-#define READ_NUMBER(context_ptr, value) \
-    if(!read_number(context_ptr, value)) { \
-        halt(context_ptr, EXIT_PROGRAM_OUT_OF_INSTRUCTIONS); \
-        break; \
-    } \
-
 void ch_run(ch_program program) {
     ch_context context = create_context(program);
 
@@ -74,7 +116,6 @@ void ch_run(ch_program program) {
         switch(current) {
             case OP_NUMBER: {
                 double value = LOAD_NUMBER(&context, READ_PTR(&context));
-                READ_NUMBER(&context, &value);
                 STACK_PUSH(&context, MAKE_NUMBER(value));
                 break;
             }
@@ -128,8 +169,7 @@ void ch_run(ch_program program) {
                 break;
             }
             case OP_POPN: {
-                double value;
-                READ_NUMBER(&context, &value);
+                double value = LOAD_NUMBER(&context, READ_PTR(&context));
                 uint8_t num_popped = (uint8_t) value;
 
                 // TODO add runtime check?
@@ -137,8 +177,7 @@ void ch_run(ch_program program) {
                 break;
             }
             case OP_LOAD_LOCAL: {
-                double value;
-                READ_NUMBER(&context, &value);
+                double value = LOAD_NUMBER(&context, READ_PTR(&context));
                 uint8_t offset = (uint8_t) value;
                 ch_stack_copy(&context.stack, offset);
                 break;
@@ -151,22 +190,23 @@ void ch_run(ch_program program) {
             }
             case OP_CALL: {
                 ch_argcount argcount = READ_ARGCOUNT(&context);
+                ch_object function;
+                STACK_POP(&context, &function);
 
-                ch_object entry;
-                STACK_POP(&context, &entry);
-                if (!IS_NUMBER(entry)) {
-                    halt(&context, EXIT_INCORRECT_TYPE);
-                    return;
-                }
-                uint32_t offset = (uint32_t) AS_NUMBER(entry);
-                uint8_t* address = context.pstart + offset;
-                
+                try_call(&context, function, argcount);
                 break;
             }
             case OP_RETURN_VALUE: {
+                ch_object returned_value;
+                STACK_POP(&context, &returned_value);
+
+                call_return(&context);
+
+                STACK_PUSH(&context, returned_value);
                 break;
             }
             case OP_RETURN_VOID: {
+                call_return(&context);
                 break;
             }
             case OP_DEBUG: {

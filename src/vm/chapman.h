@@ -17,6 +17,8 @@ typedef enum {
     EXIT_INCORRECT_TYPE,
 } ch_exit;
 
+#define IS_PROGRAM_PTR_SAFE(context_ptr, program_ptr) (program_ptr >= (context_ptr)->pstart && (context_ptr)->pend < program_ptr)
+
 typedef struct {
     // The data section comes first, then the program section after
     uint8_t* start;
@@ -25,11 +27,12 @@ typedef struct {
 } ch_program;
 
 typedef struct {
-    uint8_t* call_ip;
+    uint8_t* return_addr;
     ch_stack_addr stack_addr;
 } ch_call;
 
 #define CH_CALL_STACK_SIZE 256
+
 typedef struct {
     ch_call calls[CH_CALL_STACK_SIZE];
     uint32_t size;

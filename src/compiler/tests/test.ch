@@ -5,5 +5,5 @@
         return x + 2;
     };
 
-    return y + 2;
+    return addTwo(y);
 }
