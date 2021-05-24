@@ -71,7 +71,7 @@ void ch_disassemble(const ch_program* program) {
 
     header("INSTRUCTIONS");
     uint8_t* i = program->start + program->data_size;
-    while(i <= program->start + program->total_size) {
+    while(i < program->start + program->total_size) {
         uint32_t offset = i - program->start;
         uint8_t opcode = *i;
         i++;

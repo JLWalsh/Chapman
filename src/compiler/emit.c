@@ -65,8 +65,13 @@ void ch_emit_op(ch_emit* emit, ch_op op) {
     write_blob(&emit->function_scope->bytecode, &op, 1);
 }
 void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr) {
-    ch_dataptr ptr_le = format_ptr_in_little_endian(ptr);
-    write_blob(&emit->function_scope->bytecode, &ptr_le, sizeof(ptr_le));
+    uint8_t buffer[sizeof(ptr)];
+    buffer[0] = (ptr & 0xff);
+    buffer[1] = (ptr & 0xff00) >> 8;
+    buffer[2] = (ptr & 0xff0000) >> 16;
+    buffer[3] = (ptr & 0xff000000) >> 24;
+
+    write_blob(&emit->function_scope->bytecode, buffer, sizeof(buffer));
 }
 
 void ch_emit_argcount(ch_emit* emit, ch_argcount argcount) {
