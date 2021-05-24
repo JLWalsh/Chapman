@@ -7,6 +7,11 @@
 #define INITIAL_BLOB_SIZE 10000
 #define BLOB_CONTENT_SIZE(blob_ptr) ((blob_ptr)->current - (blob_ptr)->start)
 
+ch_dataptr format_ptr_in_little_endian(ch_dataptr ptr) {
+    uint8_t* byte_ptr = (uint8_t*) &ptr;
+    return (ch_dataptr) (byte_ptr[0] << 0 | byte_ptr[1] << 8 | byte_ptr[2] << 16 | byte_ptr[3] << 24);
+}
+
 ch_blob create_blob();
 ch_dataptr write_blob(ch_blob* blob, void* data_start, size_t write_size);
 void free_blob(ch_blob* blob);
@@ -59,14 +64,13 @@ void ch_emit_op(ch_emit* emit, ch_op op) {
     // Using sizeof(ch_op) would be unreliable, as enum sizes are compiler-dependent
     write_blob(&emit->function_scope->bytecode, &op, 1);
 }
-
 void ch_emit_ptr(ch_emit* emit, ch_dataptr ptr) {
-    // TODO account for endianess when writing
-    write_blob(&emit->function_scope->bytecode, &ptr, sizeof(ch_dataptr));
+    ch_dataptr ptr_le = format_ptr_in_little_endian(ptr);
+    write_blob(&emit->function_scope->bytecode, &ptr_le, sizeof(ptr_le));
 }
 
 void ch_emit_argcount(ch_emit* emit, ch_argcount argcount) {
-    write_blob(&emit->function_scope->bytecode, &argcount, sizeof(ch_argcount));
+    write_blob(&emit->function_scope->bytecode, &argcount, sizeof(argcount));
 }
 
 ch_dataptr ch_emit_double(ch_emit* emit, double value) {

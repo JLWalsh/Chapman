@@ -358,7 +358,7 @@ void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
         comp->scope.locals_size = last_scope_size;
 
         ch_emit_op(GET_EMIT(comp), OP_POPN);
-        ch_emit_double(GET_EMIT(comp), (double) num_values_popped);
+        ch_emit_ptr(GET_EMIT(comp), num_values_popped);
     }
 }
 
@@ -427,7 +427,7 @@ void number(ch_compilation* comp) {
     ch_dataptr value_ptr = ch_emit_double(GET_EMIT(comp), value);
 
     ch_emit_op(GET_EMIT(comp), OP_NUMBER);
-    ch_emit_ptr(GET_EMIT(comp), value_ptr);
+    ch_emit_ptr(GET_EMIT(comp), value);
 }
 
 void return_statement(ch_compilation* comp) {

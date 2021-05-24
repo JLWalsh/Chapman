@@ -7,8 +7,8 @@
 
 // Reads a 4 byte pointer (offset from 0) in little endian layout
 #define READ_PTR(context) ( \
-    (context)->pcurrent += 4,\
-    (ch_dataptr) ((context)->pcurrent[0] & (context)->pcurrent[1] << 8 & (context)->pcurrent[2] << 16 & (context)->pcurrent[3] << 24) \
+    (context)->pcurrent += sizeof(ch_dataptr),\
+    READ_DATAPTR_FROM_BYTES((context)->pcurrent) \
     ) \
 
 #define READ_ARGCOUNT(context) ( \

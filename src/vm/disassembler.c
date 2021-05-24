@@ -4,7 +4,6 @@
 #include <inttypes.h>
 
 #define NAME(op, name) [op] = #name
-#define READ_PTR(i) (ch_dataptr) (i[0] & i[1] << 8 & i[2] << 16 & i[3] << 24)
 #define LOAD_NUMBER(program, ptr) (*((double*) (&(program)->start[ptr])))
 
 const char* OPCODE_NAMES[NUMBER_OF_OPCODES] = {
@@ -33,7 +32,7 @@ void header(const char* name) {
 }
 
 size_t print_double_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_PTR(i);
+    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
     double value = LOAD_NUMBER(program, ptr);
 
     printf("(ptr: %" PRIu32 " <%f>) ", ptr, value);
@@ -42,15 +41,23 @@ size_t print_double_ptr(const ch_program* program, uint8_t* i) {
 }
 
 size_t print_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_PTR(i);
+    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
     printf("(ptr: %" PRIu32 ") ", ptr);
+
+    return 4;
+}
+
+size_t print_function_ptr(const ch_program* program, uint8_t* i) {
+    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
+    ch_dataptr ptr_with_data_offset = ptr + program->data_size;
+    printf("(ptr %" PRIu32 ") ", ptr_with_data_offset);
 
     return 4;
 }
 
 size_t print_argcount(const ch_program* program, uint8_t* i) {
     ch_argcount argcount = *i;
-    printf("(%" PRIu8 ") ", argcount);
+    printf("(argc %" PRIu8 ") ", argcount);
 
     return 1;
 }
@@ -72,14 +79,17 @@ void ch_disassemble(const ch_program* program) {
         printf("%" PRIu32 ": %s ", offset, opcode_name);
 
         switch(opcode) {
-            case OP_LOAD_LOCAL:
-            case OP_NUMBER:
-            case OP_POPN: {
+            case OP_NUMBER: {
                 i += print_double_ptr(program, i);
                 break;
             }
-            case OP_FUNCTION: {
+            case OP_LOAD_LOCAL:
+            case OP_POPN: {
                 i += print_ptr(program, i);
+                break;
+            }
+            case OP_FUNCTION: {
+                i += print_function_ptr(program, i);
                 i += print_argcount(program, i);
                 break;
             }
