@@ -6,7 +6,8 @@
 #define CH_BLOB_BUFFER_GROWTH_MULTIPLIER 2
 #define CH_BLOB_BUFFER_INITIAL_SIZE 10000
 
-#define CH_EMIT_IS_SCOPED(emit_ptr) ((emit_ptr)->function_scope != NULL)
+// Emit is scoped when it has a parent, meaning that it's a function within a function
+#define CH_EMIT_IS_SCOPED(emit_ptr) ((emit_ptr)->function_scope != NULL && (emit_ptr)->function_scope->parent != NULL)
 
 typedef struct {
     uint8_t* start;

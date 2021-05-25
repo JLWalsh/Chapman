@@ -1,8 +1,10 @@
 #main() {
-    #addTwo(x, y) {
+    val y = 30;
+    #addTwo(x) {
         return x + 2;
     };
-    val y = 30;
 
-    return addTwo(y);
+    val z = addTwo(y);
+
+    val r = z + 1;
 }

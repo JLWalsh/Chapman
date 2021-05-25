@@ -155,6 +155,10 @@ bool ch_token_next(ch_token_state* state, ch_token* next) {
 
 ch_token_kind ch_parse_token_kind(const char* token_start, size_t token_size) {
     for(uint8_t i = 0; i < num_keywords; i++) {
+        if (token_size != strlen(keywords[i].name)) {
+            continue;
+        }
+
         if(strncmp(token_start, keywords[i].name, token_size) == 0) {
             return keywords[i].kind;
         }

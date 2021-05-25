@@ -24,6 +24,10 @@ typedef struct {
 
     ch_scope scope;
 
+    /*
+        is_panic is a state of the compiler, e.g. when an error is found it will be in panic state until it has a chance to synchronize
+        has_errors is a flag that is set to true whenever an error is first encountered. This is used to signal to the user that there were compilation errors.
+    */
     bool is_panic;
     bool has_errors;
 

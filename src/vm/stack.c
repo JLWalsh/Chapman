@@ -3,57 +3,67 @@
 #include <stdlib.h>
 
 bool ch_stack_push(ch_stack* stack, ch_object entry) {
-    if (stack->current >= stack->end) {
+    if (stack->size >= stack->max_size) {
         return false;
     }
 
-    *stack->current = entry;
-    stack->current++;
+    stack->start[stack->size] = entry;
+    stack->size++;
 
     return true;
 }
 
 bool ch_stack_pop(ch_stack* stack, ch_object* popped) {
-    if (stack->current == stack->start) {
+    if (stack->size <= 0) {
         return false;
     }
 
-    *popped = *(stack->current - 1);
-    stack->current--;
+    *popped = stack->start[stack->size - 1];
+    stack->size--;
 
     return true;
 }
 
 bool ch_stack_copy(ch_stack* stack, uint8_t index) {
-    ch_object* position = &stack->start[index];
-    if (position < stack->start || position >= stack->current) {
+    if (index >= stack->size || stack->size >= stack->max_size) {
         return false;
     }
 
-    *stack->current = *(position);
-    stack->current++;
+    stack->start[stack->size] = stack->start[index];
+    stack->size++;
 
     return true;
 }
 
 bool ch_stack_popn(ch_stack* stack, uint8_t n) {
-    if (stack->current - stack->start < n) {
+    if (stack->size < n) {
         return false;
     }
 
-    stack->current -= n;
+    stack->size -= n;
+
+    return true;
+}
+
+bool ch_stack_seekto(ch_stack* stack, ch_stack_addr addr) {
+    if (addr > stack->size) {
+        return false;
+    }
+
+    stack->size = addr;
 
     return true;
 }
 
 ch_stack ch_stack_create() {
     // TODO make stack size configurable upon startup
-    size_t size = 1000 * sizeof(ch_object);
+    size_t max_size = 1000;
+    size_t size = max_size * sizeof(ch_object);
     void* start = malloc(size);
 
     return (ch_stack) {
         .start=start,
-        .end=start + size,
-        .current=start,
+        .max_size=max_size,
+        .size=0
     };
 }

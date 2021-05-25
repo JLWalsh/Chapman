@@ -32,7 +32,7 @@ void header(const char* name) {
 }
 
 size_t print_double_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
+    ch_dataptr ptr = READ_DATAPTR(i);
     double value = LOAD_NUMBER(program, ptr);
 
     printf("(ptr: %" PRIu32 " <%f>) ", ptr, value);
@@ -41,14 +41,14 @@ size_t print_double_ptr(const ch_program* program, uint8_t* i) {
 }
 
 size_t print_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
+    ch_dataptr ptr = READ_DATAPTR(i);
     printf("(ptr: %" PRIu32 ") ", ptr);
 
     return 4;
 }
 
 size_t print_function_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR_FROM_BYTES(i);
+    ch_dataptr ptr = READ_DATAPTR(i);
     ch_dataptr ptr_with_data_offset = ptr + program->data_size;
     printf("(ptr %" PRIu32 ") ", ptr_with_data_offset);
 

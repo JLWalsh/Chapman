@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+#include <inttypes.h>
 
 #define GET_EMIT(comp_ptr) (&((comp_ptr)->emit))
 
@@ -33,13 +35,22 @@ typedef struct {
 
 void advance(ch_compilation* comp);
 bool consume(ch_compilation* comp, ch_token_kind kind, const char* error_message, ch_token* out_token);
-void panic(ch_compilation* comp, const char* error_message);
+void error(ch_compilation* comp, const char* error_message, ...);
 void synchronize_outside_function(ch_compilation* comp);
 void synchronize_in_function(ch_compilation* comp);
 
 void function(ch_compilation* comp);
 ch_argcount function_arglist(ch_compilation* comp);
-void identifier(ch_compilation* comp);
+
+/*
+    Identifiers are handled differently when read as a standalone statement VS when they're part of an expression.
+    When read as a standalone statement, we expect the identifier to always be invoked, but in an expression
+    an identifier could simply refer to a variable.
+*/
+void statement_identifier(ch_compilation* comp);
+void expression_identifier(ch_compilation* comp);
+void identifier(ch_compilation* comp, bool must_have_invocation);
+
 void declaration(ch_compilation* comp);
 void scope(ch_compilation* comp);
 void function_statement(ch_compilation* comp);
@@ -57,7 +68,7 @@ void binary(ch_compilation* comp);
 void unary(ch_compilation* comp);
 void number(ch_compilation* comp);
 void return_statement(ch_compilation* comp);
-void invocation(ch_compilation* comp);
+ch_argcount invocation(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN]  = {PREC_NONE,   grouping,   NULL},
@@ -66,7 +77,7 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_FSLASH] = {PREC_FACTOR, NULL,       binary},
     [TK_STAR]   = {PREC_FACTOR, NULL,       binary},
     [TK_NUM]    = {PREC_NONE,   number,     NULL},
-    [TK_ID]     = {PREC_NONE,   identifier, NULL},
+    [TK_ID]     = {PREC_NONE,   expression_identifier, NULL},
 };
 
 const ch_parse_rule* get_rule(ch_token_kind kind);
@@ -100,6 +111,7 @@ void advance(ch_compilation* comp) {
     comp->previous = comp->current;
 
     // Skip over any erroneous tokens
+    // TODO make compilation fail when erroneous tokens are encountered
     while(!ch_token_next(&comp->token_state, &comp->current));
 }
 
@@ -116,14 +128,21 @@ bool consume(ch_compilation* comp, ch_token_kind kind, const char* error_message
         return true;
     }
 
-    panic(comp, error_message);
+    error(comp, error_message);
     return false;
 }
 
-void panic(ch_compilation* comp, const char* error_message) {
+void error(ch_compilation* comp, const char* error_message, ...) {
+    printf("[%" PRIu16 "]: ", comp->token_state.line);
+
+    va_list args;
+    va_start(args, error_message);
+    vfprintf(stderr, error_message, args);
+    va_end(args);
+    fputs("\n", stderr);
+
     comp->is_panic = true;
     comp->has_errors = true;
-    ch_pr_error(error_message, comp);
 }
 
 // Error recovery used when the error occurs outside a function declaration
@@ -175,6 +194,11 @@ void function(ch_compilation* comp) {
     ch_token name;
     if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
 
+    // If the function isn't in another function, we don't emit these values (for now)
+    if (function_scope.parent != NULL) {
+        add_local(comp, name.lexeme);
+    }
+
     uint8_t scope_mark = begin_scope(comp);
     ch_argcount argcount = function_arglist(comp);
     scope(comp);
@@ -186,13 +210,11 @@ void function(ch_compilation* comp) {
     ch_dataptr function_ptr = ch_emit_commit_function(&comp->emit);
 
     // If the function isn't in another function, we don't emit these values
-    if (CH_EMIT_IS_SCOPED(&comp->emit)) {
+    if (function_scope.parent != NULL) {
         ch_emit_op(GET_EMIT(comp), OP_FUNCTION);
         ch_emit_ptr(GET_EMIT(comp), function_ptr);
         ch_emit_argcount(GET_EMIT(comp), argcount);
     }
-
-    add_local(comp, name.lexeme);
 }
 
 ch_argcount function_arglist(ch_compilation* comp) {
@@ -201,7 +223,7 @@ ch_argcount function_arglist(ch_compilation* comp) {
     ch_argcount argcount = 0;
     while(comp->current.kind != TK_PCLOSE) {
         if (++argcount >= CH_ARGCOUNT_MAX) {
-            panic(comp, "Exceeded argument limit.");
+            error(comp, "Exceeded argument limit.");
             break;
         }
 
@@ -218,15 +240,37 @@ ch_argcount function_arglist(ch_compilation* comp) {
 
     return argcount;
 }
+void statement_identifier(ch_compilation* comp) {
+    /*
+        Ensure that we're invoking the variable
 
-void identifier(ch_compilation* comp) {
+        Tolerated:
+        print(x);
+        Not tolerated:
+        print;
+    */
+    advance(comp); // identifier() expects the TK_ID to already be processed
+    identifier(comp, true);
+}
+
+void expression_identifier(ch_compilation* comp) {
+    identifier(comp, false);
+}
+
+void identifier(ch_compilation* comp, bool must_have_invocation) {
     ch_token name = comp->previous;
 
     uint8_t offset;
     if (scope_lookup(comp, name.lexeme, &offset)) {
         bool is_invocation = comp->current.kind == TK_POPEN;
+        if (!is_invocation && must_have_invocation) {
+            error(comp, "Expected invocation.");
+            return;
+        }
+
+        ch_argcount argcount;
         if (is_invocation) {
-            invocation(comp);
+            argcount = invocation(comp);
         }
 
         ch_emit_op(GET_EMIT(comp), OP_LOAD_LOCAL);
@@ -234,21 +278,20 @@ void identifier(ch_compilation* comp) {
 
         if (is_invocation) {
             ch_emit_op(GET_EMIT(comp), OP_CALL);
+            ch_emit_argcount(GET_EMIT(comp), argcount);
         }
 
         return;
     }
 
-    char pattern[] = "Unresolved variable: %.*s";
-    char message[sizeof(pattern) + name.lexeme.size];
-    snprintf(message, sizeof(message), pattern, name.lexeme.size, name.lexeme.start);
-    panic(comp, message);
+    error(comp, "Unresolved variable: %.*s", name.lexeme.size, name.lexeme.start);
 }
 
-void invocation(ch_compilation* comp) {
+ch_argcount invocation(ch_compilation* comp) {
     consume(comp, TK_POPEN, "Expected start of invocation", NULL);
 
     bool has_comma = false;
+    ch_argcount argcount = 0;
     while(comp->current.kind != TK_PCLOSE && comp->current.kind != TK_EOF) {
         expression(comp);
         has_comma = false;
@@ -257,14 +300,18 @@ void invocation(ch_compilation* comp) {
             advance(comp);
             has_comma = true;
         }
+
+        argcount++;
     }
 
     if (has_comma) {
-        panic(comp, "Expected argument.");
-        return;
+        error(comp, "Expected argument.");
+        return argcount;
     }
 
     consume(comp, TK_PCLOSE, "Expected end of arguments list.", NULL);
+
+    return argcount;
 }
 
 void declaration(ch_compilation* comp) {
@@ -280,7 +327,7 @@ void declaration(ch_compilation* comp) {
 
 void add_local(ch_compilation* comp, ch_lexeme name) {
     if (comp->scope.locals_size == UINT8_MAX) {
-        panic(comp, "Exceeded variable limit in scope.");
+        error(comp, "Exceeded variable limit in scope.");
         return;
     }
 
@@ -309,7 +356,7 @@ bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset) {
             continue;
         }
 
-        if (strncmp(value_name->start, name.start, MIN(value_name->size, name.size)) == 0) {
+        if (strncmp(value_name->start, name.start, value_name->size) == 0) {
             *offset = i;
             return true;
         }
@@ -340,7 +387,11 @@ void function_statement(ch_compilation* comp) {
             function(comp);
             break;
         }
-        default: panic(comp, "Expected statement.");
+        case TK_ID: {
+            statement_identifier(comp);
+            break;
+        }
+        default: error(comp, "Expected statement.");
     }
 
     consume(comp, TK_SEMI, "Expected semicolon.", NULL);
@@ -366,7 +417,7 @@ void parse(ch_compilation* comp, ch_precedence_level prec) {
     advance(comp);
     ch_parse_func prefix = get_rule(comp->previous.kind)->prefix_parse;
     if (!prefix) {
-        panic(comp, "Expected expression");
+        error(comp, "Expected expression");
         return;
     }
 
@@ -427,7 +478,7 @@ void number(ch_compilation* comp) {
     ch_dataptr value_ptr = ch_emit_double(GET_EMIT(comp), value);
 
     ch_emit_op(GET_EMIT(comp), OP_NUMBER);
-    ch_emit_ptr(GET_EMIT(comp), value);
+    ch_emit_ptr(GET_EMIT(comp), value_ptr);
 }
 
 void return_statement(ch_compilation* comp) {
