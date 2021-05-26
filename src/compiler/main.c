@@ -34,8 +34,8 @@ int main(void) {
         return 0;
     }
 
-    ch_run(compiled_program);
-    //ch_disassemble(&compiled_program);
+    //ch_run(compiled_program);
+    ch_disassemble(&compiled_program);
 
     return 0;
 }

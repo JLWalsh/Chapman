@@ -3,6 +3,7 @@
 #include "error.h"
 #include "util.h"
 #include <vm/chapman.h>
+#include <vm/hash.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -58,7 +59,9 @@ void function_statement(ch_compilation* comp);
 uint8_t begin_scope(ch_compilation* comp);
 void end_scope(ch_compilation* comp, uint8_t parent_scope_size);
 bool scope_lookup(ch_compilation* comp, ch_lexeme name, uint8_t* offset);
+void add_variable(ch_compilation* comp, ch_lexeme name);
 void add_local(ch_compilation* comp, ch_lexeme name);
+void add_global(ch_compilation* comp, ch_lexeme name);
 
 // Expression parsing
 void parse(ch_compilation* comp, ch_precedence_level prec);
@@ -91,6 +94,10 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
         .emit=ch_emit_create(),
     };
 
+    // This scope is used to write program setup instructions, such as global definitions
+    ch_emit_scope emit_scope;
+    ch_emit_create_scope(&comp.emit, &emit_scope);
+
     advance(&comp);
     while (comp.current.kind == TK_POUND) {
         if (comp.is_panic) {
@@ -101,6 +108,8 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
     }
 
     consume(&comp, TK_EOF, "Expected end of file.", NULL);
+
+    ch_emit_commit_scope(&comp.emit);
 
     *output = ch_emit_assemble(GET_EMIT(&comp));
 
@@ -187,17 +196,14 @@ void synchronize_in_function(ch_compilation* comp) {
 }
 
 void function(ch_compilation* comp) {
-    ch_function_scope function_scope;
-    ch_emit_create_function(&comp->emit, &function_scope);
-
     consume(comp, TK_POUND, "Expected start of function.", NULL);
     ch_token name;
     if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
 
-    // If the function isn't in another function, we don't emit these values (for now)
-    if (function_scope.parent != NULL) {
-        add_local(comp, name.lexeme);
-    }
+    add_local(comp, name.lexeme);
+
+    ch_emit_scope emit_scope;
+    ch_emit_create_scope(&comp->emit, &emit_scope);
 
     uint8_t scope_mark = begin_scope(comp);
     ch_argcount argcount = function_arglist(comp);
@@ -205,15 +211,15 @@ void function(ch_compilation* comp) {
     end_scope(comp, scope_mark);
 
     // Ensure that all functions return
-    ch_emit_op(GET_EMIT(comp), OP_RETURN_VOID);
+    EMIT_OP(GET_EMIT(comp), OP_RETURN_VOID);
 
-    ch_dataptr function_ptr = ch_emit_commit_function(&comp->emit);
+    ch_dataptr function_ptr = ch_emit_commit_scope(&comp->emit);
 
     // If the function isn't in another function, we don't emit these values
-    if (function_scope.parent != NULL) {
-        ch_emit_op(GET_EMIT(comp), OP_FUNCTION);
-        ch_emit_ptr(GET_EMIT(comp), function_ptr);
-        ch_emit_argcount(GET_EMIT(comp), argcount);
+    if (emit_scope.parent != NULL) {
+        EMIT_OP(GET_EMIT(comp), OP_FUNCTION);
+        EMIT_PTR(GET_EMIT(comp), function_ptr);
+        EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
     }
 }
 
@@ -273,12 +279,12 @@ void identifier(ch_compilation* comp, bool must_have_invocation) {
             argcount = invocation(comp);
         }
 
-        ch_emit_op(GET_EMIT(comp), OP_LOAD_LOCAL);
-        ch_emit_ptr(GET_EMIT(comp), offset);
+        EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
+        EMIT_PTR(GET_EMIT(comp), offset);
 
         if (is_invocation) {
-            ch_emit_op(GET_EMIT(comp), OP_CALL);
-            ch_emit_argcount(GET_EMIT(comp), argcount);
+            EMIT_OP(GET_EMIT(comp), OP_CALL);
+            EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
         }
 
         return;
@@ -325,14 +331,28 @@ void declaration(ch_compilation* comp) {
     add_local(comp, name.lexeme);
 }
 
-void add_local(ch_compilation* comp, ch_lexeme name) {
+void add_variable(ch_compilation* comp, ch_lexeme name) {
     if (comp->scope.locals_size == UINT8_MAX) {
         error(comp, "Exceeded variable limit in scope.");
         return;
     }
 
+    if (CH_EMITTING_GLOBALLY(GET_EMIT(comp))) {
+        add_global(comp, name);
+    } else {
+        add_local(comp, name);
+    }
+}
+
+void add_local(ch_compilation* comp, ch_lexeme name) {
     ch_local* local = &comp->scope.locals[comp->scope.locals_size++];
     local->name = name;
+}
+
+void add_global(ch_compilation* comp, ch_lexeme name) {
+    EMIT_OP(GET_EMIT(comp), OP_GLOBAL);
+    uint32_t hash = ch_hash_string(name.start, name.size);
+    EMIT_UINT32(GET_EMIT(comp), hash);
 }
 
 void scope(ch_compilation* comp) {
@@ -408,8 +428,8 @@ void end_scope(ch_compilation* comp, uint8_t last_scope_size) {
         uint8_t num_values_popped = comp->scope.locals_size - last_scope_size;
         comp->scope.locals_size = last_scope_size;
 
-        ch_emit_op(GET_EMIT(comp), OP_POPN);
-        ch_emit_ptr(GET_EMIT(comp), num_values_popped);
+        EMIT_OP(GET_EMIT(comp), OP_POPN);
+        EMIT_PTR(GET_EMIT(comp), num_values_popped);
     }
 }
 
@@ -450,10 +470,10 @@ void binary(ch_compilation* comp) {
     parse(comp, (ch_precedence_level) (prec + 1));
 
     switch(kind) {
-        case TK_PLUS: ch_emit_op(GET_EMIT(comp), OP_ADD); break;
-        case TK_MINUS: ch_emit_op(GET_EMIT(comp), OP_SUB); break;
-        case TK_STAR: ch_emit_op(GET_EMIT(comp), OP_MUL); break;
-        case TK_FSLASH: ch_emit_op(GET_EMIT(comp), OP_DIV); break;
+        case TK_PLUS: EMIT_OP(GET_EMIT(comp), OP_ADD); break;
+        case TK_MINUS: EMIT_OP(GET_EMIT(comp), OP_SUB); break;
+        case TK_STAR: EMIT_OP(GET_EMIT(comp), OP_MUL); break;
+        case TK_FSLASH: EMIT_OP(GET_EMIT(comp), OP_DIV); break;
         default:
             return;
     }
@@ -465,7 +485,7 @@ void unary(ch_compilation* comp) {
     parse(comp, PREC_UNARY);
 
     switch(kind) {
-        case TK_MINUS: ch_emit_op(GET_EMIT(comp), OP_NEGATE); break;
+        case TK_MINUS: EMIT_OP(GET_EMIT(comp), OP_NEGATE); break;
         default:
             return;
     }
@@ -475,10 +495,10 @@ void number(ch_compilation* comp) {
     const char* start = comp->previous.lexeme.start;
 
     double value = strtod(start, NULL);
-    ch_dataptr value_ptr = ch_emit_double(GET_EMIT(comp), value);
+    ch_dataptr value_ptr = EMIT_DATA_DOUBLE(GET_EMIT(comp), value);
 
-    ch_emit_op(GET_EMIT(comp), OP_NUMBER);
-    ch_emit_ptr(GET_EMIT(comp), value_ptr);
+    EMIT_OP(GET_EMIT(comp), OP_NUMBER);
+    EMIT_PTR(GET_EMIT(comp), value_ptr);
 }
 
 void return_statement(ch_compilation* comp) {
@@ -486,11 +506,11 @@ void return_statement(ch_compilation* comp) {
 
     // Return statement without expression
     if (comp->current.kind == TK_SEMI) {
-        ch_emit_op(GET_EMIT(comp), OP_RETURN_VOID);
+        EMIT_OP(GET_EMIT(comp), OP_RETURN_VOID);
         return;
     }
 
     // Return statement with expression
     expression(comp);
-    ch_emit_op(GET_EMIT(comp), OP_RETURN_VALUE);
+    EMIT_OP(GET_EMIT(comp), OP_RETURN_VALUE);
 }

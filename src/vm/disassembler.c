@@ -32,23 +32,30 @@ void header(const char* name) {
 }
 
 size_t print_double_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR(i);
+    ch_dataptr ptr = READ_U32(i);
     double value = LOAD_NUMBER(program, ptr);
 
     printf("(ptr: %" PRIu32 " <%f>) ", ptr, value);
 
-    return 4;
+    return sizeof(ch_dataptr);
 }
 
 size_t print_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR(i);
+    ch_dataptr ptr = READ_U32(i);
     printf("(ptr: %" PRIu32 ") ", ptr);
 
-    return 4;
+    return sizeof(ch_dataptr);
+}
+
+size_t print_hash(const ch_program* program, uint8_t* i) {
+    uint32_t hash = READ_U32(i);
+    printf("(hash: %" PRIu32 ") ", hash);
+
+    return sizeof(uint32_t);
 }
 
 size_t print_function_ptr(const ch_program* program, uint8_t* i) {
-    ch_dataptr ptr = READ_DATAPTR(i);
+    ch_dataptr ptr = READ_U32(i);
     ch_dataptr ptr_with_data_offset = ptr + program->data_size;
     printf("(ptr %" PRIu32 ") ", ptr_with_data_offset);
 
@@ -95,6 +102,10 @@ void ch_disassemble(const ch_program* program) {
             }
             case OP_CALL: {
                 i += print_argcount(program, i);
+                break;
+            }
+            case OP_GLOBAL: {
+                i += print_hash(program, i);
                 break;
             }
             default: break;

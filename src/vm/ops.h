@@ -19,6 +19,7 @@ typedef enum {
     OP_RETURN_VALUE,
 
     OP_FUNCTION,
+    OP_GLOBAL,
 
     OP_DEBUG,
 

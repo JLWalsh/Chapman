@@ -8,7 +8,7 @@
 
 #define VM_READ_PTR(context) ( \
     (context)->pcurrent += sizeof(ch_dataptr),\
-    READ_DATAPTR((context)->pcurrent - sizeof(ch_dataptr)) \
+    READ_U32((context)->pcurrent - sizeof(ch_dataptr)) \
     ) \
 
 #define VM_READ_ARGCOUNT(context) ( \
