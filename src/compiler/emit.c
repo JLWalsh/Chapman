@@ -11,11 +11,16 @@ ch_blob create_blob();
 void free_blob(ch_blob* blob);
 
 ch_emit ch_emit_create(ch_emit_scope* out_scope) {
-    return (ch_emit) {
-        .emit_scope=out_scope,
+    ch_emit emit = {
+        .emit_scope=NULL,
         .data=create_blob(),
         .function_bytecode=create_blob(),
     };
+
+    ch_emit_create_scope(&emit, out_scope);
+    emit.emit_scope = out_scope;
+
+    return emit;
 }
 
 void ch_emit_create_scope(ch_emit* emit, ch_emit_scope* out_scope) {
@@ -38,7 +43,7 @@ ch_dataptr ch_emit_commit_scope(ch_emit* emit) {
     return function_ptr;
 }
 
-ch_program ch_emit_assemble(ch_emit* emit) {
+ch_program ch_emit_assemble(ch_emit* emit, ch_dataptr program_start_ptr) {
     // TODO ensure emit_scope is NULL
     size_t data_size = emit->data.current - emit->data.start;
     size_t bytecode_size = emit->function_bytecode.current - emit->function_bytecode.start;
@@ -51,7 +56,12 @@ ch_program ch_emit_assemble(ch_emit* emit) {
     free_blob(&emit->data);
     free_blob(&emit->function_bytecode);
 
-    return (ch_program) {.start=program, .data_size=data_size, .total_size=program_size};
+    return (ch_program) {
+        .start=program, 
+        .data_size=data_size, 
+        .total_size=program_size,
+        .program_start_ptr=program_start_ptr
+    };
 }
 
 ch_dataptr ch_emit_write(ch_blob* blob, void* data_start, size_t write_size) {

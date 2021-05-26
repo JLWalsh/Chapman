@@ -86,17 +86,14 @@ ch_parse_rule rules[NUM_TOKENS] = {
 const ch_parse_rule* get_rule(ch_token_kind kind);
 
 bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output) {
+    ch_emit_scope global_emit_scope;
     ch_compilation comp = {
         .token_state=ch_token_init(program, program_size), 
         .scope={.locals_size=0},
         .is_panic=false,
         .has_errors=false,
-        .emit=ch_emit_create(),
+        .emit=ch_emit_create(&global_emit_scope),
     };
-
-    // This scope is used to write program setup instructions, such as global definitions
-    ch_emit_scope emit_scope;
-    ch_emit_create_scope(&comp.emit, &emit_scope);
 
     advance(&comp);
     while (comp.current.kind == TK_POUND) {
@@ -109,9 +106,9 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
 
     consume(&comp, TK_EOF, "Expected end of file.", NULL);
 
-    ch_emit_commit_scope(&comp.emit);
+    ch_dataptr program_start_ptr = ch_emit_commit_scope(&comp.emit);
 
-    *output = ch_emit_assemble(GET_EMIT(&comp));
+    *output = ch_emit_assemble(GET_EMIT(&comp), program_start_ptr);
 
     return !comp.has_errors;
 }
@@ -200,8 +197,6 @@ void function(ch_compilation* comp) {
     ch_token name;
     if(!consume(comp, TK_ID, "Expected function name.", &name)) return;
 
-    add_local(comp, name.lexeme);
-
     ch_emit_scope emit_scope;
     ch_emit_create_scope(&comp->emit, &emit_scope);
 
@@ -215,12 +210,11 @@ void function(ch_compilation* comp) {
 
     ch_dataptr function_ptr = ch_emit_commit_scope(&comp->emit);
 
-    // If the function isn't in another function, we don't emit these values
-    if (emit_scope.parent != NULL) {
-        EMIT_OP(GET_EMIT(comp), OP_FUNCTION);
-        EMIT_PTR(GET_EMIT(comp), function_ptr);
-        EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
-    }
+    EMIT_OP(GET_EMIT(comp), OP_FUNCTION);
+    EMIT_PTR(GET_EMIT(comp), function_ptr);
+    EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+
+    add_variable(comp, name.lexeme);
 }
 
 ch_argcount function_arglist(ch_compilation* comp) {

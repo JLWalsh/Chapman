@@ -39,13 +39,13 @@ typedef struct {
     ch_blob data;
 } ch_emit;
 
-ch_emit ch_emit_create();
+ch_emit ch_emit_create(ch_emit_scope* out_scope);
 
 void ch_emit_create_scope(ch_emit* emit, ch_emit_scope* out_scope);
 
 ch_dataptr ch_emit_commit_scope(ch_emit* emit);
 
-ch_program ch_emit_assemble(ch_emit* emit);
+ch_program ch_emit_assemble(ch_emit* emit, ch_dataptr program_start_ptr);
 
 ch_dataptr ch_emit_write(ch_blob* emit, void* value_ptr, size_t size);
 

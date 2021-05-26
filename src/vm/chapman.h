@@ -24,6 +24,8 @@ typedef struct {
     uint8_t* start;
     size_t data_size;
     size_t total_size;
+    // Where the program setup is located, relative to the start of the bytecode section
+    ch_dataptr program_start_ptr;
 } ch_program;
 
 typedef struct {

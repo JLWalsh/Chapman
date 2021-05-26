@@ -23,6 +23,7 @@ const char* OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_RETURN_VOID, RETURN_VOID),
     NAME(OP_RETURN_VALUE, RETURN_VALUE),
     NAME(OP_FUNCTION, FUNCTION),
+    NAME(OP_GLOBAL, GLOBAL),
 
     NAME(OP_DEBUG, DEBUG),
 };
@@ -75,6 +76,7 @@ void ch_disassemble(const ch_program* program) {
     printf("Program size: %zu b\n", program->total_size);
     printf("Data section size: %zu b\n", program->data_size);
     printf("Bytecode section size: %zu b\n", program->total_size - program->data_size);
+    printf("Program starts at: %zu b\n", program->data_size + program->program_start_ptr);
 
     header("INSTRUCTIONS");
     uint8_t* i = program->start + program->data_size;

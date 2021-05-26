@@ -8,3 +8,9 @@
 
     val r = z + 1;
 }
+
+#otherFunction(a) {
+    val z = 40;
+
+    return 40 + 2 + a;
+}

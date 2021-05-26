@@ -72,7 +72,8 @@ ch_context create_context(ch_program program) {
     return (ch_context) {
         .pstart=program.start, 
         .pend=program.start + program.total_size, 
-        .pcurrent=program.start + program.data_size, // Seek after the data section
+        // Seek after the data section
+        .pcurrent=program.start + program.data_size + program.program_start_ptr, 
         .data_size=program.data_size,
         .stack=ch_stack_create(),
         .call_stack=(ch_call_stack) {
