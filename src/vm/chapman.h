@@ -3,6 +3,7 @@
 #include "stack.h"
 #include "ops.h"
 #include "defs.h"
+#include "table.h"
 
 typedef enum {
     RUNNING,
@@ -15,6 +16,7 @@ typedef enum {
     EXIT_INVALID_INSTRUCTION_POINTER,
     EXIT_NOT_ENOUGH_ARGS_IN_STACK,
     EXIT_INCORRECT_TYPE,
+    EXIT_GLOBAL_ALREADY_EXISTS,
 } ch_exit;
 
 #define IS_PROGRAM_PTR_SAFE(context_ptr, program_ptr) (program_ptr >= (context_ptr)->pstart && program_ptr < (context_ptr)->pend)
@@ -49,6 +51,8 @@ typedef struct {
     ch_stack stack;
     ch_call_stack call_stack;
     ch_exit exit;
+
+    ch_table globals;
 } ch_context;
 
 void ch_run(ch_program program);

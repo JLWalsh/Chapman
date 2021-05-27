@@ -11,6 +11,11 @@
     READ_U32((context)->pcurrent - sizeof(ch_dataptr)) \
     ) \
 
+#define VM_READ_HASH(context) ( \
+    (context)->pcurrent += sizeof(uint32_t),\
+    READ_U32((context)->pcurrent - sizeof(uint32_t)) \
+    ) \
+
 #define VM_READ_ARGCOUNT(context) ( \
     (context)->pcurrent += sizeof(ch_argcount), \
     READ_ARGCOUNT((context)->pcurrent - sizeof(ch_argcount))\
@@ -207,8 +212,21 @@ void ch_run(ch_program program) {
                 }
                 break;
             }
+            case OP_GLOBAL: {
+                uint32_t hash = VM_READ_HASH(&context);
+
+                ch_object entry;
+                STACK_POP(&context, &entry);
+
+                // set in global table (if not exists)
+                if(!ch_table_set(&context.globals, hash, entry)) {
+                    ch_runtime_error(&context, EXIT_GLOBAL_ALREADY_EXISTS, "Global already exists.");
+                }
+
+                break;
+            }
             default: {
-                halt(&context, EXIT_UNKNOWN_INSTRUCTION);
+                ch_runtime_error(&context, EXIT_UNKNOWN_INSTRUCTION, "Unknown instruction.");
                 break;
             }
         }

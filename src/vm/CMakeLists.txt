@@ -3,6 +3,7 @@ set(VM_SOURCE_FILES
     stack.c
     hash.c
     disassembler.c
+    table.c
 )
 
 add_library(vm ${VM_SOURCE_FILES})
