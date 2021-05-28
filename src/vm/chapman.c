@@ -1,5 +1,6 @@
 #include "chapman.h"
 #include "ops.h"
+#include "bytecode.h"
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -213,13 +214,14 @@ void ch_run(ch_program program) {
                 break;
             }
             case OP_GLOBAL: {
-                uint32_t hash = VM_READ_HASH(&context);
+                ch_dataptr string_ptr = VM_READ_PTR(&context);
+                ch_string* global_name = ch_bytecode_load_string(&program, string_ptr);
 
                 ch_object entry;
                 STACK_POP(&context, &entry);
 
                 // set in global table (if not exists)
-                if(!ch_table_set(&context.globals, hash, entry)) {
+                if(!ch_table_set(&context.globals, global_name, entry)) {
                     ch_runtime_error(&context, EXIT_GLOBAL_ALREADY_EXISTS, "Global already exists.");
                 }
 

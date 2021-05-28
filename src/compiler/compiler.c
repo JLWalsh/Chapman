@@ -36,10 +36,12 @@ typedef struct {
 
 void advance(ch_compilation* comp);
 bool consume(ch_compilation* comp, ch_token_kind kind, const char* error_message, ch_token* out_token);
+
 void error(ch_compilation* comp, const char* error_message, ...);
 void synchronize_outside_function(ch_compilation* comp);
 void synchronize_in_function(ch_compilation* comp);
 
+void statement(ch_compilation* comp);
 void function(ch_compilation* comp);
 ch_argcount function_arglist(ch_compilation* comp);
 
@@ -96,12 +98,12 @@ bool ch_compile(const uint8_t* program, size_t program_size, ch_program* output)
     };
 
     advance(&comp);
-    while (comp.current.kind == TK_POUND) {
+    while (comp.current.kind != TK_EOF) {
         if (comp.is_panic) {
             synchronize_outside_function(&comp);
         }
 
-        function(&comp);
+        statement(&comp);
     }
 
     consume(&comp, TK_EOF, "Expected end of file.", NULL);
@@ -188,6 +190,26 @@ void synchronize_in_function(ch_compilation* comp) {
 
             default:
                 advance(comp);
+        }
+    }
+}
+
+void statement(ch_compilation* comp) {
+    ch_token_kind kind = comp->current.kind;
+
+    switch(comp->current.kind) {
+        case TK_VAL: {
+            declaration(comp);
+            consume(comp, TK_SEMI, "Expected semicolon.", NULL);
+            break;
+        }
+        case TK_POUND: {
+            function(comp);
+            break;
+        }
+        default: {
+            error(comp, "Expected statement.");
+            return;
         }
     }
 }
@@ -322,7 +344,7 @@ void declaration(ch_compilation* comp) {
 
     expression(comp);
 
-    add_local(comp, name.lexeme);
+    add_variable(comp, name.lexeme);
 }
 
 void add_variable(ch_compilation* comp, ch_lexeme name) {
@@ -345,8 +367,9 @@ void add_local(ch_compilation* comp, ch_lexeme name) {
 
 void add_global(ch_compilation* comp, ch_lexeme name) {
     EMIT_OP(GET_EMIT(comp), OP_GLOBAL);
-    uint32_t hash = ch_hash_string(name.start, name.size);
-    EMIT_UINT32(GET_EMIT(comp), hash);
+    ch_dataptr string_ptr;
+    EMIT_DATA_STRING(GET_EMIT(comp), &name, string_ptr);
+    EMIT_PTR(GET_EMIT(comp), string_ptr);
 }
 
 void scope(ch_compilation* comp) {

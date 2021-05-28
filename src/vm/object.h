@@ -1,5 +1,6 @@
 #pragma once
 #include "defs.h"
+#include <stdbool.h>
 
 #define AS_NUMBER(object) (object.number_value)
 #define IS_NUMBER(object) (object.type == TYPE_NUMBER)
@@ -51,3 +52,8 @@ typedef struct {
     };
     ch_object_type type;
 } ch_object;
+
+// Assumes that the string does not contain a null byte at end
+ch_string* ch_string_load_raw(uint8_t* string_ptr, uint32_t size);
+
+void ch_string_free(ch_string* string);

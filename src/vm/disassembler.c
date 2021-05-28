@@ -1,4 +1,5 @@
 #include "disassembler.h"
+#include "bytecode.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
@@ -60,14 +61,24 @@ size_t print_function_ptr(const ch_program* program, uint8_t* i) {
     ch_dataptr ptr_with_data_offset = ptr + program->data_size;
     printf("(ptr %" PRIu32 ") ", ptr_with_data_offset);
 
-    return 4;
+    return sizeof(uint32_t);
+}
+
+size_t print_string_ptr(const ch_program* program, uint8_t* i) {
+    ch_dataptr ptr = READ_U32(i);
+    ch_string* string = ch_bytecode_load_string(program, ptr);
+    printf("(%s) ", string->value, ptr);
+
+    ch_string_free(string);
+
+    return sizeof(uint32_t);
 }
 
 size_t print_argcount(const ch_program* program, uint8_t* i) {
     ch_argcount argcount = *i;
     printf("(argc %" PRIu8 ") ", argcount);
 
-    return 1;
+    return sizeof(ch_argcount);
 }
 
 void ch_disassemble(const ch_program* program) {
@@ -107,7 +118,7 @@ void ch_disassemble(const ch_program* program) {
                 break;
             }
             case OP_GLOBAL: {
-                i += print_hash(program, i);
+                i += print_string_ptr(program, i);
                 break;
             }
             default: break;

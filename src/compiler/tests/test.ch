@@ -1,5 +1,8 @@
+val z = 20;
+
 #main() {
     val y = 30;
+    val y = 450;
     #addTwo(x) {
         return x + 2;
     };

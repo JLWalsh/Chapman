@@ -4,6 +4,8 @@ set(VM_SOURCE_FILES
     hash.c
     disassembler.c
     table.c
+    bytecode.c
+    object.c
 )
 
 add_library(vm ${VM_SOURCE_FILES})

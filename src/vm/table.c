@@ -1,11 +1,12 @@
 // Mostly taken from https://craftinginterpreters.com/hash-tables.html
 #include "table.h"
+#include <stdlib.h>
 
 #define TABLE_MAX_LOAD 0.75
 #define GROW_CAPACITY(capacity) ((capacity) < 8 ? 8 : (capacity) * 2)
 
 static ch_table_entry* find_entry(ch_table_entry* entries, uint32_t capacity, ch_string* key) {
-    uint32_t index = key->hash % capacity;
+    uint32_t index = key->hash & (capacity - 1);
     ch_table_entry* tombstone = NULL;
     for(;;) {
         ch_table_entry* entry = &entries[index];
@@ -19,7 +20,7 @@ static ch_table_entry* find_entry(ch_table_entry* entries, uint32_t capacity, ch
             return entry;
         }
 
-        index = (index + 1) % capacity;
+        index = (index + 1) % (capacity - 1);
     }
 
     return NULL;
@@ -49,17 +50,6 @@ static void adjust_capacity(ch_table* table, uint32_t capacity) {
     table->capacity = capacity;
 }
 
-void ch_table_create(ch_table* out_table) {
-    out_table->capacity = 0;
-    out_table->size = 0;
-    out_table->entries = NULL;
-}
-
-void ch_table_free(ch_table* table) {
-    free(table->entries);
-    ch_table_create(table);
-}
-
 bool ch_table_set(ch_table* table, ch_string* key, ch_object value) {
     if (table->size + 1 > table->capacity * TABLE_MAX_LOAD) {
         uint32_t capacity = GROW_CAPACITY(table->capacity);
@@ -82,7 +72,7 @@ ch_object* ch_table_get(ch_table* table, ch_string* key) {
     ch_table_entry* entry = find_entry(table->entries, table->capacity, key);
     if (entry->key == NULL) return false;
 
-    return entry;
+    return &entry->value;
 }
 
 bool ch_table_delete(ch_table* table, ch_string* key) {
@@ -95,4 +85,15 @@ bool ch_table_delete(ch_table* table, ch_string* key) {
     entry->value = MAKE_BOOLEAN(true);
 
     return true;
+}
+
+void ch_table_create(ch_table* out_table) {
+    out_table->capacity = 0;
+    out_table->size = 0;
+    out_table->entries = NULL;
+}
+
+void ch_table_free(ch_table* table) {
+    free(table->entries);
+    ch_table_create(table);
 }

@@ -64,7 +64,7 @@ ch_program ch_emit_assemble(ch_emit* emit, ch_dataptr program_start_ptr) {
     };
 }
 
-ch_dataptr ch_emit_write(ch_blob* blob, void* data_start, size_t write_size) {
+ch_dataptr ch_emit_write(ch_blob* blob, const void* data_start, size_t write_size) {
     uint32_t new_size = BLOB_CONTENT_SIZE(blob) + write_size;
     // TODO reintroduce exceeded capacity check
     //if (new_size >= CH_DATAPTR_MAX) {
