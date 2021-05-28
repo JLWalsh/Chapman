@@ -1,27 +1,27 @@
 #pragma once
 
 typedef enum {
-    OP_HALT,
-    OP_POP,
-    OP_POPN,
+  OP_HALT,
+  OP_POP,
+  OP_POPN,
 
-    OP_NUMBER,
-    OP_NEGATE,
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
+  OP_NUMBER,
+  OP_NEGATE,
+  OP_ADD,
+  OP_SUB,
+  OP_MUL,
+  OP_DIV,
 
-    OP_LOAD_LOCAL,
+  OP_LOAD_LOCAL,
 
-    OP_CALL,
-    OP_RETURN_VOID,
-    OP_RETURN_VALUE,
+  OP_CALL,
+  OP_RETURN_VOID,
+  OP_RETURN_VALUE,
 
-    OP_FUNCTION,
-    OP_GLOBAL,
+  OP_FUNCTION,
+  OP_GLOBAL,
 
-    OP_DEBUG,
+  OP_DEBUG,
 
-    NUMBER_OF_OPCODES,
+  NUMBER_OF_OPCODES,
 } ch_op;
