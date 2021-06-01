@@ -6,6 +6,7 @@
 typedef enum {
   TK_VAL,
   TK_VAR,
+  TK_NATIVE,
 
   TK_EQ,
   TK_PLUS,

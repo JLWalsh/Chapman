@@ -1,5 +1,6 @@
 #pragma once
 #include "defs.h"
+#include "chapman.h"
 #include <stdbool.h>
 
 #define AS_NUMBER(object) (object.number_value)
@@ -27,6 +28,11 @@
                    (ch_function){.ptr = function_ptr, .argcount = argcount},   \
                .type = TYPE_FUNCTION})
 
+#define AS_NATIVE(object) (object.native_function)
+#define IS_NATIVE(object) (object.type == TYPE_NATIVE)
+#define MAKE_NATIVE(value)                                                    \
+  ((ch_object){.native_function = value, .type = TYPE_NATIVE})
+
 typedef struct {
   ch_dataptr ptr;
   ch_argcount argcount;
@@ -44,6 +50,7 @@ typedef enum {
   TYPE_STRING,
   TYPE_BOOLEAN,
   TYPE_NULL,
+  TYPE_NATIVE,
 } ch_object_type;
 
 typedef struct {
@@ -52,6 +59,7 @@ typedef struct {
     ch_function function;
     ch_string string_value;
     bool boolean_value;
+    ch_native_function native_function;
   };
   ch_object_type type;
 } ch_object;

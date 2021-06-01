@@ -24,9 +24,8 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_RETURN_VOID, RETURN_VOID),
     NAME(OP_RETURN_VALUE, RETURN_VALUE),
     NAME(OP_FUNCTION, FUNCTION),
+    NAME(OP_NATIVE, NATIVE),
     NAME(OP_GLOBAL, GLOBAL),
-
-    NAME(OP_DEBUG, DEBUG),
 };
 
 void header(const char *name) { printf("--------- %s ---------\n", name); }
@@ -119,6 +118,10 @@ void ch_disassemble(const ch_program *program) {
     }
     case OP_GLOBAL: {
       i += print_string_ptr(program, i);
+      break;
+    }
+    case OP_NATIVE: {
+      i += print_argcount(program, i);
       break;
     }
     default:

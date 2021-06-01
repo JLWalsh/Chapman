@@ -11,8 +11,10 @@ typedef struct {
   ch_token_kind kind;
 } ch_keyword;
 
-const ch_keyword keywords[] = {
-    {"val", TK_VAL}, {"var", TK_VAR}, {"return", TK_RETURN}};
+const ch_keyword keywords[] = {{"val", TK_VAL},
+                               {"var", TK_VAR},
+                               {"return", TK_RETURN},
+                               {"native", TK_NATIVE}};
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)

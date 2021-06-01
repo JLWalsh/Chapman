@@ -1,8 +1,9 @@
 val z = 20;
 
+native #print(value);
+
 #main() {
     val y = 30;
-    val u = 450;
     #addTwo(x) {
         return x + 2;
     };

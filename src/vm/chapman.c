@@ -103,6 +103,10 @@ ch_context create_context(ch_program program) {
     break;                                                                     \
   }
 
+void add_global(ch_context* context, ch_string* name, ch_object value) {
+
+}
+
 void ch_run(ch_program program) {
   ch_context context = create_context(program);
   // TODO make the main function the function that's invoked by default
@@ -207,14 +211,6 @@ void ch_run(ch_program program) {
       call_return(&context);
       break;
     }
-    case OP_DEBUG: {
-      ch_object entry;
-      STACK_POP(&context, &entry);
-      if (IS_NUMBER(entry)) {
-        printf("NUMBER: %f\n", AS_NUMBER(entry));
-      }
-      break;
-    }
     case OP_GLOBAL: {
       ch_dataptr string_ptr = VM_READ_PTR(&context);
       ch_string *global_name = ch_bytecode_load_string(&program, string_ptr);
@@ -243,6 +239,11 @@ void ch_run(ch_program program) {
   } else {
     printf("Program has halted.\n");
   }
+}
+
+bool ch_add_native(ch_context* context, ch_native_function function, void* name, uint32_t name_size) {
+  ch_string* name_string = ch_string_load_raw(name, name_size);
+  add_global(context, name_string, MAKE_NATIVE(function));
 }
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,

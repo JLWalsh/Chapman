@@ -44,6 +44,7 @@ void synchronize_in_function(ch_compilation *comp);
 
 void statement(ch_compilation *comp);
 void function(ch_compilation *comp);
+void native_function(ch_compilation *comp);
 ch_argcount function_arglist(ch_compilation *comp);
 
 /*
@@ -214,11 +215,32 @@ void statement(ch_compilation *comp) {
     function(comp);
     break;
   }
+  case TK_NATIVE: {
+    native_function(comp);
+    break;
+  }
   default: {
     error(comp, "Expected statement.");
     return;
   }
   }
+}
+
+void native_function(ch_compilation *comp) {
+  consume(comp, TK_NATIVE, "Expected declaration of native function.", NULL);
+  consume(comp, TK_POUND, "Expected start of function.", NULL);
+  ch_token name;
+  if (!consume(comp, TK_ID, "Expected function name.", &name))
+    return;
+
+  ch_argcount argcount = function_arglist(comp);
+
+  consume(comp, TK_SEMI, "Expected semicolon.", NULL);
+
+  EMIT_OP(GET_EMIT(comp), OP_NATIVE);
+  EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+
+  add_variable(comp, name.lexeme);
 }
 
 void function(ch_compilation *comp) {
@@ -361,8 +383,9 @@ void add_variable(ch_compilation *comp, ch_lexeme name) {
     return;
   }
 
-  if(scope_lookup(comp, name, NULL)) {
-    error(comp, "Redefinition of variable in current scope: %.*s", name.size, name.start);
+  if (scope_lookup(comp, name, NULL)) {
+    error(comp, "Variable has already been defined: %.*s", name.size,
+          name.start);
     return;
   }
 
@@ -407,7 +430,8 @@ bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset) {
     }
 
     if (strncmp(value_name->start, name.start, value_name->size) == 0) {
-      if (offset != NULL) *offset = i;
+      if (offset != NULL)
+        *offset = i;
       return true;
     }
   }

@@ -19,9 +19,8 @@ typedef enum {
   OP_RETURN_VALUE,
 
   OP_FUNCTION,
+  OP_NATIVE,
   OP_GLOBAL,
-
-  OP_DEBUG,
 
   NUMBER_OF_OPCODES,
 } ch_op;
