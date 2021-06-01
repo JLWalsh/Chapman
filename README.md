@@ -1,4 +1,6 @@
 # Chapman
+![Actions Status](https://github.com/JLwalsh/Chapman/actions/workflows/actions.yml/badge.svg)
+
 A strictly typed, dynamic language inspired by Lua and Javascript.
 
 ## Project Overview

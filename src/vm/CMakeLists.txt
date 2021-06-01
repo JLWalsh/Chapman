@@ -8,6 +8,11 @@ set(VM_SOURCE_FILES
     object.c
 )
 
+# List of headers to be exported alongside the library
+set(EXPORTED_HEADERS
+    chapman.h
+)
+
 add_library(vm-static STATIC ${VM_SOURCE_FILES})
 add_library(vm-shared SHARED ${VM_SOURCE_FILES})
 
