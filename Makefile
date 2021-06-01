@@ -1,4 +1,3 @@
-
 quickbuild: build
 	cd build && cmake ../
 

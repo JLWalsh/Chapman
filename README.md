@@ -15,13 +15,13 @@ The project's source code is split into two sub-projects, being the compiler and
 ## Makefile Commands
 Make is solely used to store util commands in this project.
 
-#### Build
-If you have a working CMake installation in your shell
+### Build
 ```bash
 make quickbuild
 ```
+Make sure that you have a working CMake installation in your environment.
 
-#### Format
+### Format
 ```bash
 make format
 ```
