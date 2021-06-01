@@ -361,6 +361,11 @@ void add_variable(ch_compilation *comp, ch_lexeme name) {
     return;
   }
 
+  if(scope_lookup(comp, name, NULL)) {
+    error(comp, "Redefinition of variable in current scope: %.*s", name.size, name.start);
+    return;
+  }
+
   if (CH_EMITTING_GLOBALLY(GET_EMIT(comp))) {
     add_global(comp, name);
   } else {
@@ -402,7 +407,7 @@ bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset) {
     }
 
     if (strncmp(value_name->start, name.start, value_name->size) == 0) {
-      *offset = i;
+      if (offset != NULL) *offset = i;
       return true;
     }
   }
