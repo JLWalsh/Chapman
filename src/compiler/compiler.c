@@ -34,18 +34,18 @@ typedef struct {
   ch_parse_func infix_parse;
 } ch_parse_rule;
 
-void advance(ch_compilation *comp);
-bool consume(ch_compilation *comp, ch_token_kind kind,
+static void advance(ch_compilation *comp);
+static bool consume(ch_compilation *comp, ch_token_kind kind,
              const char *error_message, ch_token *out_token);
 
-void error(ch_compilation *comp, const char *error_message, ...);
-void synchronize_outside_function(ch_compilation *comp);
-void synchronize_in_function(ch_compilation *comp);
+static void error(ch_compilation *comp, const char *error_message, ...);
+static void synchronize_outside_function(ch_compilation *comp);
+static void synchronize_in_function(ch_compilation *comp);
 
-void statement(ch_compilation *comp);
-void function(ch_compilation *comp);
-void native_function(ch_compilation *comp);
-ch_argcount function_arglist(ch_compilation *comp);
+static void statement(ch_compilation *comp);
+static void function(ch_compilation *comp);
+static void native_function(ch_compilation *comp);
+static ch_argcount function_arglist(ch_compilation *comp);
 
 /*
     Identifiers are handled differently when read as a standalone statement VS
@@ -53,30 +53,34 @@ ch_argcount function_arglist(ch_compilation *comp);
    expect the identifier to always be invoked, but in an expression an
    identifier could simply refer to a variable.
 */
-void statement_identifier(ch_compilation *comp);
-void expression_identifier(ch_compilation *comp);
-void identifier(ch_compilation *comp, bool must_have_invocation);
+static void statement_identifier(ch_compilation *comp);
+static void expression_identifier(ch_compilation *comp);
+static void identifier(ch_compilation *comp, bool must_have_invocation);
 
-void declaration(ch_compilation *comp);
-void scope(ch_compilation *comp);
-void function_statement(ch_compilation *comp);
+static void declaration(ch_compilation *comp);
+static void scope(ch_compilation *comp);
+static void function_statement(ch_compilation *comp);
 
-uint8_t begin_scope(ch_compilation *comp);
-void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
-bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
-void add_variable(ch_compilation *comp, ch_lexeme name);
-void add_local(ch_compilation *comp, ch_lexeme name);
-void add_global(ch_compilation *comp, ch_lexeme name);
+static uint8_t begin_scope(ch_compilation *comp);
+static void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
+static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
+static void add_variable(ch_compilation *comp, ch_lexeme name);
+static void add_local(ch_compilation *comp, ch_lexeme name);
+static void add_global(ch_compilation *comp, ch_lexeme name);
+static void load_local(ch_compilation* comp, uint8_t offset);
+static void load_global(ch_compilation* comp, ch_lexeme name);
+
+static void call_main(ch_compilation* comp);
 
 // Expression parsing
-void parse(ch_compilation *comp, ch_precedence_level prec);
-void grouping(ch_compilation *comp);
-void expression(ch_compilation *comp);
-void binary(ch_compilation *comp);
-void unary(ch_compilation *comp);
-void number(ch_compilation *comp);
-void return_statement(ch_compilation *comp);
-ch_argcount invocation(ch_compilation *comp);
+static void parse(ch_compilation *comp, ch_precedence_level prec);
+static void grouping(ch_compilation *comp);
+static void expression(ch_compilation *comp);
+static void binary(ch_compilation *comp);
+static void unary(ch_compilation *comp);
+static void number(ch_compilation *comp);
+static void return_statement(ch_compilation *comp);
+static ch_argcount invocation(ch_compilation *comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN] = {PREC_NONE, grouping, NULL},
@@ -112,11 +116,30 @@ bool ch_compile(const uint8_t *program, size_t program_size,
 
   consume(&comp, TK_EOF, "Expected end of file.", NULL);
 
+  call_main(&comp);
+
   ch_dataptr program_start_ptr = ch_emit_commit_scope(&comp.emit);
 
   *output = ch_emit_assemble(GET_EMIT(&comp), program_start_ptr);
 
   return !comp.has_errors;
+}
+
+void call_main(ch_compilation* comp) {
+  // Load main function
+  EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
+  ch_lexeme main_name = {.start="main", .size=4};
+  ch_dataptr string_ptr;
+  EMIT_DATA_STRING(GET_EMIT(comp), &main_name, string_ptr);
+  EMIT_PTR(GET_EMIT(comp), string_ptr);
+
+  // Call it
+  EMIT_OP(GET_EMIT(comp), OP_CALL);
+  ch_argcount argcount = 0;
+  EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+
+  // When main returns, halt the machine
+  EMIT_OP(GET_EMIT(comp), OP_HALT);
 }
 
 void advance(ch_compilation *comp) {
@@ -215,10 +238,10 @@ void statement(ch_compilation *comp) {
     function(comp);
     break;
   }
-  case TK_NATIVE: {
-    native_function(comp);
-    break;
-  }
+  // case TK_NATIVE: {
+  //   native_function(comp);
+  //   break;
+  // }
   default: {
     error(comp, "Expected statement.");
     return;
@@ -312,30 +335,31 @@ void identifier(ch_compilation *comp, bool must_have_invocation) {
   ch_token name = comp->previous;
 
   uint8_t offset;
-  if (scope_lookup(comp, name.lexeme, &offset)) {
-    bool is_invocation = comp->current.kind == TK_POPEN;
-    if (!is_invocation && must_have_invocation) {
-      error(comp, "Expected invocation.");
-      return;
-    }
+  bool is_local = scope_lookup(comp, name.lexeme, &offset);
 
-    ch_argcount argcount;
-    if (is_invocation) {
-      argcount = invocation(comp);
-    }
-
-    EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
-    EMIT_PTR(GET_EMIT(comp), offset);
-
-    if (is_invocation) {
-      EMIT_OP(GET_EMIT(comp), OP_CALL);
-      EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
-    }
-
+  bool is_invocation = comp->current.kind == TK_POPEN;
+  if (!is_invocation && must_have_invocation) {
+    error(comp, "Expected invocation.");
     return;
   }
 
-  error(comp, "Unresolved variable: %.*s", name.lexeme.size, name.lexeme.start);
+  ch_argcount argcount;
+  if (is_invocation) {
+    argcount = invocation(comp);
+  }
+
+  if (is_local) {
+    load_local(comp, offset);
+  } else {
+    load_global(comp, name.lexeme);
+  }
+
+  if (is_invocation) {
+    EMIT_OP(GET_EMIT(comp), OP_CALL);
+    EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+  }
+
+  return;
 }
 
 ch_argcount invocation(ch_compilation *comp) {
@@ -402,7 +426,19 @@ void add_local(ch_compilation *comp, ch_lexeme name) {
 }
 
 void add_global(ch_compilation *comp, ch_lexeme name) {
-  EMIT_OP(GET_EMIT(comp), OP_GLOBAL);
+  EMIT_OP(GET_EMIT(comp), OP_SET_GLOBAL);
+  ch_dataptr string_ptr;
+  EMIT_DATA_STRING(GET_EMIT(comp), &name, string_ptr);
+  EMIT_PTR(GET_EMIT(comp), string_ptr);
+}
+
+void load_local(ch_compilation* comp, uint8_t offset) {
+  EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
+  EMIT_PTR(GET_EMIT(comp), offset);
+}
+
+void load_global(ch_compilation* comp, ch_lexeme name) {
+  EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
   ch_dataptr string_ptr;
   EMIT_DATA_STRING(GET_EMIT(comp), &name, string_ptr);
   EMIT_PTR(GET_EMIT(comp), string_ptr);

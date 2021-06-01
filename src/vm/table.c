@@ -18,11 +18,11 @@ static ch_table_entry *find_entry(ch_table_entry *entries, uint32_t capacity,
         if (tombstone == NULL)
           tombstone = entry;
       }
-    } else if (entry->key->hash == key->hash) {
+    } else if (entry->key == key) {
       return entry;
     }
 
-    index = (index + 1) % (capacity - 1);
+    index = (index + 1) & (capacity - 1);
   }
 
   return NULL;

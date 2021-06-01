@@ -20,12 +20,14 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_DIV, DIV),
 
     NAME(OP_LOAD_LOCAL, LOAD_LOCAL),
+    NAME(OP_SET_GLOBAL, SET_GLOBAL),
+    NAME(OP_LOAD_GLOBAL, LOAD_GLOBAL),
+
     NAME(OP_CALL, CALL),
     NAME(OP_RETURN_VOID, RETURN_VOID),
     NAME(OP_RETURN_VALUE, RETURN_VALUE),
     NAME(OP_FUNCTION, FUNCTION),
     NAME(OP_NATIVE, NATIVE),
-    NAME(OP_GLOBAL, GLOBAL),
 };
 
 void header(const char *name) { printf("--------- %s ---------\n", name); }
@@ -83,7 +85,7 @@ void ch_disassemble(const ch_program *program) {
 
   printf("Program size: %zu b\n", program->total_size);
   printf("Data section size: %zu b\n", program->data_size);
-  printf("Bytecode section size: %zu b\n",
+  printf("Program section size: %zu b\n",
          program->total_size - program->data_size);
   printf("Program starts at: %zu b\n",
          program->data_size + program->program_start_ptr);
@@ -112,16 +114,14 @@ void ch_disassemble(const ch_program *program) {
       i += print_argcount(program, i);
       break;
     }
+    case OP_NATIVE:
     case OP_CALL: {
       i += print_argcount(program, i);
       break;
     }
-    case OP_GLOBAL: {
+    case OP_LOAD_GLOBAL:
+    case OP_SET_GLOBAL: {
       i += print_string_ptr(program, i);
-      break;
-    }
-    case OP_NATIVE: {
-      i += print_argcount(program, i);
       break;
     }
     default:

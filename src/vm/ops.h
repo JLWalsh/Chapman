@@ -13,6 +13,8 @@ typedef enum {
   OP_DIV,
 
   OP_LOAD_LOCAL,
+  OP_SET_GLOBAL,
+  OP_LOAD_GLOBAL,
 
   OP_CALL,
   OP_RETURN_VOID,
@@ -20,7 +22,6 @@ typedef enum {
 
   OP_FUNCTION,
   OP_NATIVE,
-  OP_GLOBAL,
 
   NUMBER_OF_OPCODES,
 } ch_op;

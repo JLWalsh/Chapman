@@ -1,16 +1,14 @@
 val z = 20;
 
-native #print(value);
-
 #main() {
     val y = 30;
     #addTwo(x) {
         return x + 2;
     };
 
-    val z = addTwo(y);
+    val z = otherFunction(addTwo(y));
 
-    val r = z + 1;
+    print(z);
 }
 
 #otherFunction(a) {

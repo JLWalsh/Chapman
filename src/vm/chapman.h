@@ -17,6 +17,7 @@ typedef enum {
   EXIT_NOT_ENOUGH_ARGS_IN_STACK,
   EXIT_INCORRECT_TYPE,
   EXIT_GLOBAL_ALREADY_EXISTS,
+  EXIT_GLOBAL_NOT_FOUND,
 } ch_exit;
 
 #define IS_PROGRAM_PTR_SAFE(context_ptr, program_ptr)                          \

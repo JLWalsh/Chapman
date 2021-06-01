@@ -22,9 +22,9 @@
 // TODO do memory bounds check?
 #define LOAD_NUMBER(context, ptr) (*((double *)(&(context)->pstart[ptr])))
 
-void halt(ch_context *context, ch_exit reason) { context->exit = reason; }
+static void halt(ch_context *context, ch_exit reason) { context->exit = reason; }
 
-void call(ch_context *context, ch_function function, ch_argcount argcount) {
+static void call(ch_context *context, ch_function function, ch_argcount argcount) {
   if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
     ch_runtime_error(context, EXIT_STACK_SIZE_EXCEEDED, "Stack limit reached.");
     return;
@@ -53,7 +53,7 @@ void call(ch_context *context, ch_function function, ch_argcount argcount) {
   context->pcurrent = function_ptr;
 }
 
-void try_call(ch_context *context, ch_object object, ch_argcount argcount) {
+static void try_call(ch_context *context, ch_object object, ch_argcount argcount) {
   if (!IS_FUNCTION(object)) {
     ch_runtime_error(context, EXIT_INCORRECT_TYPE,
                      "Attempted to invoke type %d as a function.", object.type);
@@ -63,19 +63,14 @@ void try_call(ch_context *context, ch_object object, ch_argcount argcount) {
   call(context, AS_FUNCTION(object), argcount);
 }
 
-void call_return(ch_context *context) {
-  if (context->call_stack.size == 0) {
-    context->exit = EXIT_OK;
-    return;
-  }
-
+static void call_return(ch_context *context) {
   ch_call *call = &context->call_stack.calls[--context->call_stack.size];
   context->pcurrent = call->return_addr;
   // TODO check result of call
   ch_stack_seekto(&context->stack, call->stack_addr);
 }
 
-ch_context create_context(ch_program program) {
+static ch_context create_context(ch_program program) {
   return (ch_context){
       .pstart = program.start,
       .pend = program.start + program.total_size,
@@ -103,14 +98,12 @@ ch_context create_context(ch_program program) {
     break;                                                                     \
   }
 
-void add_global(ch_context* context, ch_string* name, ch_object value) {
-
+static void add_global(ch_context* context, ch_string* name, ch_object value) {
+  if(!ch_table_set(&context->globals, name, value)) ch_runtime_error(context, EXIT_GLOBAL_ALREADY_EXISTS, "Global variable has already been defined: %s.", name->value);
 }
 
 void ch_run(ch_program program) {
   ch_context context = create_context(program);
-  // TODO make the main function the function that's invoked by default
-  context.pcurrent += 34 - 16;
 
   while (context.exit == RUNNING) {
     uint8_t current = *(context.pcurrent);
@@ -211,18 +204,28 @@ void ch_run(ch_program program) {
       call_return(&context);
       break;
     }
-    case OP_GLOBAL: {
+    case OP_SET_GLOBAL: {
       ch_dataptr string_ptr = VM_READ_PTR(&context);
       ch_string *global_name = ch_bytecode_load_string(&program, string_ptr);
 
       ch_object entry;
       STACK_POP(&context, &entry);
 
-      // set in global table (if not exists)
-      if (!ch_table_set(&context.globals, global_name, entry)) {
-        ch_runtime_error(&context, EXIT_GLOBAL_ALREADY_EXISTS,
-                         "Global already exists.");
+      add_global(&context, global_name, entry);
+
+      break;
+    }
+    case OP_LOAD_GLOBAL: {
+      ch_dataptr string_ptr = VM_READ_PTR(&context);
+      ch_string *global_name = ch_bytecode_load_string(&program, string_ptr);
+
+      ch_object* global = ch_table_get(&context.globals, global_name);
+      if (global == NULL) {
+        ch_runtime_error(&context, EXIT_GLOBAL_NOT_FOUND, "Global variable does not exist: %s.", global_name->value);
+        break;
       }
+
+      STACK_PUSH(&context, *global);
 
       break;
     }
