@@ -1,6 +1,5 @@
 #pragma once
 #include "defs.h"
-#include "chapman.h"
 #include <stdbool.h>
 
 #define AS_NUMBER(object) (object.number_value)
@@ -52,6 +51,9 @@ typedef enum {
   TYPE_NULL,
   TYPE_NATIVE,
 } ch_object_type;
+
+typedef struct ch_context ch_context;
+typedef void (*ch_native_function)(ch_context* context);
 
 typedef struct {
   union {
