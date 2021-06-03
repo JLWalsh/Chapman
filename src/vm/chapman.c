@@ -71,7 +71,7 @@ static void call_return(ch_context *context) {
 }
 
 static ch_context create_context(ch_program program) {
-  return (ch_context){
+  ch_context context = {
       .pstart = program.start,
       .pend = program.start + program.total_size,
       // Seek after the data section
@@ -84,6 +84,16 @@ static ch_context create_context(ch_program program) {
           },
       .exit = RUNNING,
   };
+
+  ch_table_create(&context.globals);
+  ch_table_create(&context.strings);
+
+  return context;
+}
+
+static void teardown_context(ch_context* context) {
+  ch_table_free(&context->globals);
+  ch_table_free(&context->strings);
 }
 
 #define STACK_PUSH(context_ptr, entry)                                         \
@@ -179,7 +189,8 @@ void ch_run(ch_program program) {
     case OP_FUNCTION: {
       ch_dataptr function_ptr = VM_READ_PTR(&context);
       ch_argcount argcount = VM_READ_ARGCOUNT(&context);
-      STACK_PUSH(&context, MAKE_FUNCTION(function_ptr, argcount));
+      ch_function function = MAKE_FUNCTION(function_ptr, argcount);
+      STACK_PUSH(&context, MAKE_OBJECT(&function));
       break;
     }
     case OP_CALL: {
@@ -242,6 +253,8 @@ void ch_run(ch_program program) {
   } else {
     printf("Program has halted.\n");
   }
+
+  teardown_context(&context);
 }
 
 bool ch_add_native(ch_context* context, ch_native_function function, void* name, uint32_t name_size) {

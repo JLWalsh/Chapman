@@ -1,5 +1,5 @@
 #pragma once
-#include "object.h"
+#include "primitive.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -7,7 +7,7 @@
 #define CH_STACK_ADDR(stack_ptr) ((ch_stack_addr)((stack_ptr)->size))
 
 typedef struct {
-  ch_object *start;
+  ch_primitive *start;
   size_t max_size;
   size_t size;
 } ch_stack;
@@ -16,9 +16,9 @@ typedef uint32_t ch_stack_addr;
 
 ch_stack ch_stack_create();
 
-bool ch_stack_push(ch_stack *stack, ch_object entry);
+bool ch_stack_push(ch_stack *stack, ch_primitive entry);
 
-bool ch_stack_pop(ch_stack *stack, ch_object *popped);
+bool ch_stack_pop(ch_stack *stack, ch_primitive *popped);
 
 bool ch_stack_popn(ch_stack *stack, uint8_t n);
 

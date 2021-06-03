@@ -1,18 +1,16 @@
 #include "object.h"
 #include "hash.h"
+#include "chapman.h"
 #include <stdlib.h>
 #include <string.h>
 
-ch_string *ch_string_load_raw(uint8_t *string_ptr, uint32_t size) {
-  ch_string *string = (ch_string *)malloc(sizeof(string));
-  // +1 for null byte
-  string->value = (char *)malloc(size + 1);
-  string->size = size + 1;
+ch_string* ch_loadstring(ch_context* context, const char* value, size_t size) {
+  ch_string* string = (ch_string*) malloc(sizeof(ch_string));
+  string->size = size;
+  string->hash = ch_hash_string(value, size);
+  string->value = value;
 
-  memcpy(string->value, string_ptr, size);
-  string->value[size] = '\0';
-
-  string->hash = ch_hash_string(string->value, string->size);
+  ch_table_set(&context->strings, string, MAKE_NULL());
 
   return string;
 }

@@ -56,6 +56,8 @@ typedef struct ch_context {
   ch_exit exit;
 
   ch_table globals;
+  // For interned strings
+  ch_table strings;
 } ch_context;
 
 void ch_run(ch_program program);
