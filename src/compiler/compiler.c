@@ -42,6 +42,9 @@ static void error(ch_compilation *comp, const char *error_message, ...);
 static void synchronize_outside_function(ch_compilation *comp);
 static void synchronize_in_function(ch_compilation *comp);
 
+static void free_compiler(ch_compilation* comp);
+static ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size);
+
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
 static void native_function(ch_compilation *comp);
@@ -122,6 +125,8 @@ bool ch_compile(const uint8_t *program, size_t program_size,
 
   *output = ch_emit_assemble(GET_EMIT(&comp), program_start_ptr);
 
+  free_compiler(&comp);
+
   return !comp.has_errors;
 }
 
@@ -129,8 +134,7 @@ void call_main(ch_compilation* comp) {
   // Load main function
   EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
   ch_lexeme main_name = {.start="main", .size=4};
-  ch_dataptr string_ptr;
-  EMIT_DATA_STRING(GET_EMIT(comp), &main_name, string_ptr);
+  ch_dataptr string_ptr = emit_string(comp, main_name.start, main_name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 
   // Call it
@@ -223,6 +227,33 @@ void synchronize_in_function(ch_compilation *comp) {
       advance(comp);
     }
   }
+}
+
+void free_compiler(ch_compilation* comp) {
+  for(uint32_t i = 0; i < comp->strings.size; i++) {
+    ch_table_entry entry = comp->strings.entries[i];
+    if (entry.key != NULL) {
+      // Strings allocated in emit_string
+      free(entry.key);
+    }
+  }
+}
+
+ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size) {
+  ch_string* same_string = ch_table_find_string(&comp->strings, value, size);
+
+  if(same_string != NULL) {
+    ch_primitive* position = ch_table_get(&comp->strings, same_string);
+    return (ch_dataptr) position->number_value;
+  }
+
+  ch_dataptr string_ptr;
+  EMIT_DATA_STRING(GET_EMIT(comp), value, size, string_ptr);
+
+  ch_string* key = ch_loadstring(value, size);
+  ch_table_set(&comp->strings, key, MAKE_NUMBER(string_ptr));
+
+  return string_ptr;
 }
 
 void statement(ch_compilation *comp) {
@@ -427,8 +458,7 @@ void add_local(ch_compilation *comp, ch_lexeme name) {
 
 void add_global(ch_compilation *comp, ch_lexeme name) {
   EMIT_OP(GET_EMIT(comp), OP_SET_GLOBAL);
-  ch_dataptr string_ptr;
-  EMIT_DATA_STRING(GET_EMIT(comp), &name, string_ptr);
+  ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 }
 
@@ -439,8 +469,7 @@ void load_local(ch_compilation* comp, uint8_t offset) {
 
 void load_global(ch_compilation* comp, ch_lexeme name) {
   EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
-  ch_dataptr string_ptr;
-  EMIT_DATA_STRING(GET_EMIT(comp), &name, string_ptr);
+  ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 }
 

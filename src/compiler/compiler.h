@@ -34,6 +34,7 @@ typedef struct {
   bool has_errors;
 
   ch_emit emit;
+  ch_table strings; 
 } ch_compilation;
 
 bool ch_compile(const uint8_t *program, size_t program_size,

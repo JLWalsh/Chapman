@@ -24,22 +24,22 @@
 
 static void halt(ch_context *context, ch_exit reason) { context->exit = reason; }
 
-static void call(ch_context *context, ch_function function, ch_argcount argcount) {
+static void call(ch_context *context, ch_function* function, ch_argcount argcount) {
   if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
     ch_runtime_error(context, EXIT_STACK_SIZE_EXCEEDED, "Stack limit reached.");
     return;
   }
 
-  if (argcount != function.argcount) {
+  if (argcount != function->argcount) {
     ch_runtime_error(
         context, EXIT_NOT_ENOUGH_ARGS_IN_STACK,
         "Incorrect number of arguments passed to function (expected %" PRIu8
         ", got %" PRIu8 ").",
-        function.argcount, argcount);
+        function->argcount, argcount);
     return;
   }
 
-  uint8_t *function_ptr = context->pstart + function.ptr + context->data_size;
+  uint8_t *function_ptr = context->pstart + function->ptr + context->data_size;
   if (!IS_PROGRAM_PTR_SAFE(context, function_ptr)) {
     ch_runtime_error(context, EXIT_INVALID_INSTRUCTION_POINTER,
                      "Function pointer exceeds bounds of program.");
@@ -48,17 +48,19 @@ static void call(ch_context *context, ch_function function, ch_argcount argcount
 
   ch_call *call = &context->call_stack.calls[context->call_stack.size++];
   call->return_addr = context->pcurrent;
-  call->stack_addr = CH_STACK_ADDR(&context->stack) - function.argcount;
+  call->stack_addr = CH_STACK_ADDR(&context->stack) - function->argcount;
 
   context->pcurrent = function_ptr;
 }
 
-static void try_call(ch_context *context, ch_object object, ch_argcount argcount) {
-  if (!IS_FUNCTION(object)) {
+static void try_call(ch_context *context, ch_primitive primitive, ch_argcount argcount) {
+  if (!IS_OBJECT(primitive) || !IS_FUNCTION(AS_OBJECT(primitive))) {
     ch_runtime_error(context, EXIT_INCORRECT_TYPE,
-                     "Attempted to invoke type %d as a function.", object.type);
+                     "Attempted to invoke type %d as a function.", primitive.type);
     return;
   }
+
+  ch_object* object = AS_OBJECT(primitive);
 
   call(context, AS_FUNCTION(object), argcount);
 }
@@ -83,6 +85,7 @@ static ch_context create_context(ch_program program) {
               .size = 0,
           },
       .exit = RUNNING,
+      .program = program
   };
 
   ch_table_create(&context.globals);
@@ -108,8 +111,20 @@ static void teardown_context(ch_context* context) {
     break;                                                                     \
   }
 
-static void add_global(ch_context* context, ch_string* name, ch_object value) {
+static void add_global(ch_context* context, ch_string* name, ch_primitive value) {
   if(!ch_table_set(&context->globals, name, value)) ch_runtime_error(context, EXIT_GLOBAL_ALREADY_EXISTS, "Global variable has already been defined: %s.", name->value);
+}
+
+static ch_string* read_string(ch_context* context) {
+  ch_dataptr string_ptr = VM_READ_PTR(context);
+  ch_bytecode_string string = ch_bytecode_load_string(&context->program, string_ptr);
+
+  return ch_loadistring(context, string.value, string.size);
+}
+
+void print(ch_context* context) {
+  ch_primitive primitive;
+  ch_stack_pop(&context->stack, &primitive);
 }
 
 void ch_run(ch_program program) {
@@ -126,8 +141,8 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_ADD: {
-      ch_object left;
-      ch_object right;
+      ch_primitive left;
+      ch_primitive right;
       STACK_POP(&context, &left);
       STACK_POP(&context, &right);
 
@@ -136,8 +151,8 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_SUB: {
-      ch_object left;
-      ch_object right;
+      ch_primitive left;
+      ch_primitive right;
       STACK_POP(&context, &left);
       STACK_POP(&context, &right);
 
@@ -146,8 +161,8 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_MUL: {
-      ch_object left;
-      ch_object right;
+      ch_primitive left;
+      ch_primitive right;
       STACK_POP(&context, &left);
       STACK_POP(&context, &right);
 
@@ -156,8 +171,8 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_DIV: {
-      ch_object left;
-      ch_object right;
+      ch_primitive left;
+      ch_primitive right;
       STACK_POP(&context, &left);
       STACK_POP(&context, &right);
 
@@ -170,7 +185,7 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_POP: {
-      ch_object entry;
+      ch_primitive entry;
       STACK_POP(&context, &entry);
       break;
     }
@@ -189,21 +204,21 @@ void ch_run(ch_program program) {
     case OP_FUNCTION: {
       ch_dataptr function_ptr = VM_READ_PTR(&context);
       ch_argcount argcount = VM_READ_ARGCOUNT(&context);
-      ch_function function = MAKE_FUNCTION(function_ptr, argcount);
-      STACK_PUSH(&context, MAKE_OBJECT(&function));
+      ch_primitive function = MAKE_OBJECT(ch_loadfunction(function_ptr, argcount));
+      STACK_PUSH(&context, function);
       break;
     }
     case OP_CALL: {
       ch_argcount argcount = VM_READ_ARGCOUNT(&context);
 
-      ch_object function;
+      ch_primitive function;
       STACK_POP(&context, &function);
 
       try_call(&context, function, argcount);
       break;
     }
     case OP_RETURN_VALUE: {
-      ch_object returned_value;
+      ch_primitive returned_value;
       STACK_POP(&context, &returned_value);
 
       call_return(&context);
@@ -216,23 +231,21 @@ void ch_run(ch_program program) {
       break;
     }
     case OP_SET_GLOBAL: {
-      ch_dataptr string_ptr = VM_READ_PTR(&context);
-      ch_string *global_name = ch_bytecode_load_string(&program, string_ptr);
+      ch_string *name = read_string(&context);
 
-      ch_object entry;
+      ch_primitive entry;
       STACK_POP(&context, &entry);
 
-      add_global(&context, global_name, entry);
+      add_global(&context, name, entry);
 
       break;
     }
     case OP_LOAD_GLOBAL: {
-      ch_dataptr string_ptr = VM_READ_PTR(&context);
-      ch_string *global_name = ch_bytecode_load_string(&program, string_ptr);
+      ch_string *name = read_string(&context);
 
-      ch_object* global = ch_table_get(&context.globals, global_name);
+      ch_primitive* global = ch_table_get(&context.globals, name);
       if (global == NULL) {
-        ch_runtime_error(&context, EXIT_GLOBAL_NOT_FOUND, "Global variable does not exist: %s.", global_name->value);
+        ch_runtime_error(&context, EXIT_GLOBAL_NOT_FOUND, "Global variable does not exist: %s.", name->value);
         break;
       }
 
@@ -255,11 +268,6 @@ void ch_run(ch_program program) {
   }
 
   teardown_context(&context);
-}
-
-bool ch_add_native(ch_context* context, ch_native_function function, void* name, uint32_t name_size) {
-  ch_string* name_string = ch_string_load_raw(name, name_size);
-  add_global(context, name_string, MAKE_NATIVE(function));
 }
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,

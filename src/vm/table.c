@@ -1,5 +1,6 @@
 // Taken from https://craftinginterpreters.com/hash-tables.html
 #include "table.h"
+#include "hash.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -52,7 +53,7 @@ static void adjust_capacity(ch_table *table, uint32_t capacity) {
   table->capacity = capacity;
 }
 
-bool ch_table_set(ch_table *table, ch_string *key, ch_object value) {
+bool ch_table_set(ch_table *table, ch_string *key, ch_primitive value) {
   if (table->size + 1 > table->capacity * TABLE_MAX_LOAD) {
     uint32_t capacity = GROW_CAPACITY(table->capacity);
     adjust_capacity(table, capacity);
@@ -69,7 +70,7 @@ bool ch_table_set(ch_table *table, ch_string *key, ch_object value) {
   return is_new;
 }
 
-ch_object *ch_table_get(ch_table *table, ch_string *key) {
+ch_primitive *ch_table_get(ch_table *table, ch_string *key) {
   if (table->size == 0) return NULL;
 
   ch_table_entry *entry = find_entry(table->entries, table->capacity, key);
@@ -90,9 +91,10 @@ bool ch_table_delete(ch_table *table, ch_string *key) {
   return true;
 }
 
-ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size, uint32_t hash) {
+ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size) {
   if (table->size == 0) return NULL;
 
+  uint32_t hash = ch_hash_string(value, size);
   uint32_t index = hash & (table->capacity - 1);
   for (;;) {
     ch_table_entry* entry = &table->entries[index];

@@ -15,7 +15,7 @@
 #define AS_NATIVE(object) (object.native_function)
 #define IS_NATIVE(object) (object.type == TYPE_NATIVE)
 #define MAKE_NATIVE(native_function)                                  \
-  ((ch_native) {.function = native_function, .object = (ch_object) {.type = TYPE_NATIVE}})
+  ((ch_native) {.function = (ch_native_function) (native_function), .object = (ch_object) {.type = TYPE_NATIVE}})
 
 typedef enum {
   TYPE_FUNCTION,
@@ -48,9 +48,14 @@ typedef struct {
   ch_native_function function;
 } ch_native;
 
-ch_string* ch_loadstring(ch_context* context, const char* value, size_t size);
+ch_function* ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount);
+
+ch_string* ch_copystring(const char* value, size_t size);
+
+ch_string* ch_loadstring(const char* value, size_t size);
+
+// Load interned string
+ch_string* ch_loadistring(ch_context* context, char* value, size_t size);
 
 // Assumes that the string does not contain a null byte at end
 ch_string *ch_string_load_raw(uint8_t *string_ptr, uint32_t size);
-
-void ch_string_free(ch_string *string);

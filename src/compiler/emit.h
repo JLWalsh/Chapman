@@ -36,12 +36,12 @@
     EMIT_BYTECODE(emit_ptr, &op, 1);                                           \
   }
 
-#define EMIT_DATA_STRING(emit_ptr, lexeme_ptr, out_dataptr)                    \
+#define EMIT_DATA_STRING(emit_ptr, string_ptr, string_size, out_dataptr)                    \
   {                                                                            \
     uint8_t le_value[4];                                                       \
-    ch_uint32_to_le_array((lexeme_ptr)->size, le_value);                       \
+    ch_uint32_to_le_array((string_size), le_value);                       \
     out_dataptr = EMIT_DATA(emit_ptr, &(le_value), sizeof(le_value));          \
-    EMIT_DATA(emit_ptr, (lexeme_ptr)->start, (lexeme_ptr)->size);              \
+    EMIT_DATA(emit_ptr, (string_ptr), (string_size));              \
   }
 
 #define EMIT_DATA_DOUBLE(emit_ptr, value)                                      \

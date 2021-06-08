@@ -1,11 +1,12 @@
 #pragma once
 #include "object.h"
+#include "primitive.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {
   ch_string *key;
-  ch_object value;
+  ch_primitive value;
 } ch_table_entry;
 
 typedef struct {
@@ -18,10 +19,10 @@ void ch_table_create(ch_table *out_table);
 
 void ch_table_free(ch_table *table);
 
-bool ch_table_set(ch_table *table, ch_string *key, ch_object value);
+bool ch_table_set(ch_table *table, ch_string *key, ch_primitive value);
 
-ch_object *ch_table_get(ch_table *table, ch_string *key);
+ch_primitive *ch_table_get(ch_table *table, ch_string *key);
 
 bool ch_table_delete(ch_table *table, ch_string *key);
 
-ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size, uint32_t hash);
+ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size);

@@ -58,11 +58,10 @@ typedef struct ch_context {
   ch_table globals;
   // For interned strings
   ch_table strings;
+  ch_program program;
 } ch_context;
 
 void ch_run(ch_program program);
-
-bool ch_add_native(ch_context* context, ch_native_function function, void* name, uint32_t name_size);
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);
