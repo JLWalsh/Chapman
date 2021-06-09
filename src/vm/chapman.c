@@ -22,6 +22,8 @@
 // TODO do memory bounds check?
 #define LOAD_NUMBER(context, ptr) (*((double *)(&(context)->pstart[ptr])))
 
+#define CURRENT_CALL(context_ptr) ((context_ptr)->call_stack.calls[(context_ptr)->call_stack.size - 1])
+
 static void halt(ch_context *context, ch_exit reason) { context->exit = reason; }
 
 static void call(ch_context *context, ch_function* function, ch_argcount argcount) {
@@ -54,7 +56,7 @@ static void call(ch_context *context, ch_function* function, ch_argcount argcoun
 }
 
 static void try_call(ch_context *context, ch_primitive primitive, ch_argcount argcount) {
-  if (!IS_OBJECT(primitive) || !IS_FUNCTION(AS_OBJECT(primitive))) {
+  if (!IS_OBJECT(primitive)) {
     ch_runtime_error(context, EXIT_INCORRECT_TYPE,
                      "Attempted to invoke type %d as a function.", primitive.type);
     return;
@@ -62,7 +64,19 @@ static void try_call(ch_context *context, ch_primitive primitive, ch_argcount ar
 
   ch_object* object = AS_OBJECT(primitive);
 
-  call(context, AS_FUNCTION(object), argcount);
+  if (IS_FUNCTION(object)) {
+    call(context, AS_FUNCTION(object), argcount);
+    return;
+  }
+
+  if (IS_NATIVE(object)) {
+    ch_native* native = AS_NATIVE(object);
+    native->function(context, argcount);
+    return;
+  }
+
+  ch_runtime_error(context, EXIT_INCORRECT_TYPE,
+                    "Attempted to invoke object type %d as a function.", object->type);
 }
 
 static void call_return(ch_context *context) {
@@ -122,13 +136,21 @@ static ch_string* read_string(ch_context* context) {
   return ch_loadistring(context, string.value, string.size);
 }
 
-void print(ch_context* context) {
+void print(ch_context* context, ch_argcount argcount) {
   ch_primitive primitive;
   ch_stack_pop(&context->stack, &primitive);
+  printf("NATIVE PRINT %f\n", primitive.number_value);
 }
 
 void ch_run(ch_program program) {
   ch_context context = create_context(program);
+
+  char r[] = "print";
+  ch_string* s = ch_copystring(r, sizeof(r) - 1);
+  ch_native native = MAKE_NATIVE(print);
+  ch_table_set(&context.strings, s, MAKE_NULL());
+
+  add_global(&context, s, MAKE_OBJECT(&native));
 
   while (context.exit == RUNNING) {
     uint8_t current = *(context.pcurrent);
@@ -198,7 +220,8 @@ void ch_run(ch_program program) {
     }
     case OP_LOAD_LOCAL: {
       uint8_t offset = (uint8_t)VM_READ_PTR(&context);
-      ch_stack_copy(&context.stack, offset);
+      ch_stack_addr index = CURRENT_CALL(&context).stack_addr + offset;
+      ch_stack_copy(&context.stack, index);
       break;
     }
     case OP_FUNCTION: {

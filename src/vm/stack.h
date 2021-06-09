@@ -24,4 +24,4 @@ bool ch_stack_popn(ch_stack *stack, uint8_t n);
 
 bool ch_stack_seekto(ch_stack *stack, ch_stack_addr addr);
 
-bool ch_stack_copy(ch_stack *stack, uint8_t index);
+bool ch_stack_copy(ch_stack *stack, ch_stack_addr addr);

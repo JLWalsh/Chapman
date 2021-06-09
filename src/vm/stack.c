@@ -24,7 +24,7 @@ bool ch_stack_pop(ch_stack *stack, ch_primitive *popped) {
   return true;
 }
 
-bool ch_stack_copy(ch_stack *stack, uint8_t index) {
+bool ch_stack_copy(ch_stack *stack, ch_stack_addr index) {
   if (index >= stack->size || stack->size >= stack->max_size) {
     return false;
   }
