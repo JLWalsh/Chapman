@@ -6,6 +6,7 @@ set(VM_SOURCE_FILES
     table.c
     bytecode.c
     object.c
+    vm.c
 )
 
 # List of headers to be exported alongside the library

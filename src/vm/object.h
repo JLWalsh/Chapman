@@ -17,6 +17,9 @@
 #define MAKE_NATIVE(native_function)                                  \
   ((ch_native) {.function = (ch_native_function) (native_function), .object = (ch_object) {.type = TYPE_NATIVE}})
 
+#define COPY_STRING true
+#define NOCOPY_STRING false
+
 typedef enum {
   TYPE_FUNCTION,
   TYPE_NATIVE,

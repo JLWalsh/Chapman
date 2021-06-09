@@ -63,10 +63,17 @@ typedef struct ch_context {
   ch_primitive program_return_value;
 } ch_context;
 
-ch_primitive ch_run(ch_program program);
+
+ch_context ch_newvm(ch_program program);
+
+void ch_freevm(ch_context* context);
+
+ch_primitive ch_runfunction(ch_context* context, const char* function_name);
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);
 
 // name_size should include null byte
 bool ch_addnative(ch_context* context, ch_native_function function, const char *name);
+
+ch_primitive ch_pop(ch_context* vm);
