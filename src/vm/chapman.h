@@ -65,3 +65,6 @@ void ch_run(ch_program program);
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);
+
+// name_size should include null byte
+bool ch_addnative(ch_context* context, ch_native_function function, const char *name);

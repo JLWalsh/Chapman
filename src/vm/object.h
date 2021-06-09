@@ -21,6 +21,7 @@ typedef enum {
   TYPE_FUNCTION,
   TYPE_NATIVE,
   TYPE_OBJECT,
+  TYPE_STRING,
 } ch_object_type;
 
 typedef struct ch_context ch_context;
@@ -50,12 +51,8 @@ typedef struct {
 
 ch_function* ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount);
 
-ch_string* ch_copystring(const char* value, size_t size);
+ch_native* ch_loadnative(ch_native_function function);
 
-ch_string* ch_loadstring(const char* value, size_t size);
+ch_string* ch_loadstring(ch_context* vm, const char* value, size_t size, bool copy_string);
 
-// Load interned string
-ch_string* ch_loadistring(ch_context* context, char* value, size_t size);
-
-// Assumes that the string does not contain a null byte at end
-ch_string *ch_string_load_raw(uint8_t *string_ptr, uint32_t size);
+void ch_initstring(ch_string* string, const char* value, size_t size);

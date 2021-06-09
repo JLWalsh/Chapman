@@ -4,6 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+static ch_string* new_string(const char* value, size_t size) {
+  ch_string* string = (ch_string*) malloc(sizeof(ch_string));
+  ch_initstring(string, value, size);
+
+  return string;
+}
+
+
 ch_function* ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount) {
   ch_function* function = malloc(sizeof(ch_function));
   function->object.type = TYPE_FUNCTION;
@@ -13,33 +21,39 @@ ch_function* ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount) {
   return function;
 }
 
-ch_string* ch_copystring(const char* value, size_t size) {
-  char* copy_value = malloc(size + 1);
-  memcpy(copy_value, value, size);
-  copy_value[size] = '\0';
+ch_native* ch_loadnative(ch_native_function function) {
+  ch_native* native = malloc(sizeof(ch_native));
+  native->function = function;
+  native->object.type = TYPE_NATIVE;
 
-  return ch_loadstring(copy_value, size);
+  return native;
 }
 
-ch_string* ch_loadstring(const char* value, size_t size) {
-  ch_string* string = (ch_string*) malloc(sizeof(ch_string));
-  string->object.type = TYPE_OBJECT;
-  string->size = size;
-  string->hash = ch_hash_string(value, size);
-  string->value = value;
-
-  return string;
-}
-
-ch_string* ch_loadistring(ch_context* context, char* value, size_t size) {
-  ch_string* interned_string = ch_table_find_string(&context->strings, value, size);
+ch_string* ch_loadstring(ch_context* vm, const char* value, size_t size, bool copy_string) {
+  ch_string* interned_string = ch_table_find_string(&vm->strings, value, size);
 
   if (interned_string != NULL) {
     return interned_string;
   }
 
-  ch_string* string = ch_loadstring(value, size);
-  ch_table_set(&context->strings, string, MAKE_NULL());
+  const char* final_value = value;
+  if (copy_string) {
+    char* copied_string = malloc(size + 1);
+    memcpy(copied_string, value, size);
+    copied_string[size] = '\0';
+
+    final_value = copied_string;
+  }
+
+  ch_string* string = new_string(value, size);
+  ch_table_set(&vm->strings, string, MAKE_NULL());
 
   return string;
+}
+
+void ch_initstring(ch_string* string, const char* value, size_t size) {
+  string->value = value;
+  string->size = size;
+  string->hash = ch_hash_string(value, size);
+  string->object.type = TYPE_STRING;
 }

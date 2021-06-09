@@ -239,6 +239,13 @@ void free_compiler(ch_compilation* comp) {
   }
 }
 
+ch_string* new_string(const char* value, size_t size) {
+  ch_string* string = (ch_string*) malloc(sizeof(ch_string));
+  ch_initstring(string, value, size);
+
+  return string;
+}
+
 ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size) {
   ch_string* same_string = ch_table_find_string(&comp->strings, value, size);
 
@@ -250,7 +257,7 @@ ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size) {
   ch_dataptr string_ptr;
   EMIT_DATA_STRING(GET_EMIT(comp), value, size, string_ptr);
 
-  ch_string* key = ch_loadstring(value, size);
+  ch_string* key = new_string(value, size);
   ch_table_set(&comp->strings, key, MAKE_NUMBER(string_ptr));
 
   return string_ptr;

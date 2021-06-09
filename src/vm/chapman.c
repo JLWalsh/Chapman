@@ -133,7 +133,7 @@ static ch_string* read_string(ch_context* context) {
   ch_dataptr string_ptr = VM_READ_PTR(context);
   ch_bytecode_string string = ch_bytecode_load_string(&context->program, string_ptr);
 
-  return ch_loadistring(context, string.value, string.size);
+  return ch_loadstring(context, string.value, string.size, false);
 }
 
 void print(ch_context* context, ch_argcount argcount) {
@@ -145,12 +145,7 @@ void print(ch_context* context, ch_argcount argcount) {
 void ch_run(ch_program program) {
   ch_context context = create_context(program);
 
-  char r[] = "print";
-  ch_string* s = ch_copystring(r, sizeof(r) - 1);
-  ch_native native = MAKE_NATIVE(print);
-  ch_table_set(&context.strings, s, MAKE_NULL());
-
-  add_global(&context, s, MAKE_OBJECT(&native));
+  ch_addnative(&context, print, "print");
 
   while (context.exit == RUNNING) {
     uint8_t current = *(context.pcurrent);
@@ -291,6 +286,13 @@ void ch_run(ch_program program) {
   }
 
   teardown_context(&context);
+}
+
+bool ch_addnative(ch_context* context, ch_native_function function, const char *name) {
+  ch_string* s = ch_loadstring(context, name, strlen(name), true);
+  ch_native* native = ch_loadnative(function);
+
+  add_global(context, s, MAKE_OBJECT(native));
 }
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
