@@ -17,7 +17,8 @@ static ch_table_entry *find_entry(ch_table_entry *entries, uint32_t capacity,
       if (IS_NULL(entry->value)) {
         return tombstone != NULL ? tombstone : entry;
       } else {
-        if (tombstone == NULL) tombstone = entry;
+        if (tombstone == NULL)
+          tombstone = entry;
       }
     } else if (entry->key == key) {
       return entry;
@@ -39,7 +40,8 @@ static void adjust_capacity(ch_table *table, uint32_t capacity) {
   for (uint32_t i = 0; i < table->capacity; i++) {
     ch_table_entry *entry = &table->entries[i];
 
-    if (entry->key == NULL) continue;
+    if (entry->key == NULL)
+      continue;
 
     ch_table_entry *destination = find_entry(entries, capacity, entry->key);
     destination->key = entry->key;
@@ -62,7 +64,8 @@ bool ch_table_set(ch_table *table, ch_string *key, ch_primitive value) {
   ch_table_entry *entry = find_entry(table->entries, table->capacity, key);
   bool is_new = entry->key == NULL;
 
-  if (is_new && IS_NULL(entry->value)) table->size++;
+  if (is_new && IS_NULL(entry->value))
+    table->size++;
 
   entry->key = key;
   entry->value = value;
@@ -71,19 +74,23 @@ bool ch_table_set(ch_table *table, ch_string *key, ch_primitive value) {
 }
 
 ch_primitive *ch_table_get(ch_table *table, ch_string *key) {
-  if (table->size == 0) return NULL;
+  if (table->size == 0)
+    return NULL;
 
   ch_table_entry *entry = find_entry(table->entries, table->capacity, key);
-  if (entry->key == NULL) return NULL;
+  if (entry->key == NULL)
+    return NULL;
 
   return &entry->value;
 }
 
 bool ch_table_delete(ch_table *table, ch_string *key) {
-  if (table->size == 0) return false;
+  if (table->size == 0)
+    return false;
 
   ch_table_entry *entry = find_entry(table->entries, table->capacity, key);
-  if (entry->key == NULL) return false;
+  if (entry->key == NULL)
+    return false;
 
   entry->key = NULL;
   entry->value = MAKE_BOOLEAN(true);
@@ -91,19 +98,21 @@ bool ch_table_delete(ch_table *table, ch_string *key) {
   return true;
 }
 
-ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size) {
-  if (table->size == 0) return NULL;
+ch_string *ch_table_find_string(ch_table *table, const char *value,
+                                size_t size) {
+  if (table->size == 0)
+    return NULL;
 
   uint32_t hash = ch_hash_string(value, size);
   uint32_t index = hash & (table->capacity - 1);
   for (;;) {
-    ch_table_entry* entry = &table->entries[index];
+    ch_table_entry *entry = &table->entries[index];
     if (entry->key == NULL) {
 
-      if (IS_NULL(entry->value)) return NULL;
-    } else if (entry->key->size == size &&
-        entry->key->hash == hash &&
-        memcmp(entry->key->value, value, size) == 0) {
+      if (IS_NULL(entry->value))
+        return NULL;
+    } else if (entry->key->size == size && entry->key->hash == hash &&
+               memcmp(entry->key->value, value, size) == 0) {
       return entry->key;
     }
 

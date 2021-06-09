@@ -22,18 +22,26 @@
 // TODO do memory bounds check?
 #define LOAD_NUMBER(context, ptr) (*((double *)(&(context)->pstart[ptr])))
 
-#define CURRENT_CALL(context_ptr) ((context_ptr)->call_stack.calls[(context_ptr)->call_stack.size - 1])
+#define CURRENT_CALL(context_ptr)                                              \
+  ((context_ptr)->call_stack.calls[(context_ptr)->call_stack.size - 1])
 
-static void halt(ch_context *context, ch_exit reason) { context->exit = reason; }
+static void halt(ch_context *context, ch_exit reason) {
+  context->exit = reason;
+}
 
-static void call(ch_context *context, ch_function* function, ch_argcount argcount) {
+static void call(ch_context *context, ch_function *function,
+                 ch_argcount argcount) {
   if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
     ch_runtime_error(context, EXIT_STACK_SIZE_EXCEEDED, "Stack limit reached.");
     return;
   }
 
   if (argcount != function->argcount) {
-    ch_runtime_error(context, EXIT_NOT_ENOUGH_ARGS_IN_STACK, "Incorrect number of arguments passed to function (expected %" PRIu8 ", got %" PRIu8 ").", function->argcount, argcount);
+    ch_runtime_error(
+        context, EXIT_NOT_ENOUGH_ARGS_IN_STACK,
+        "Incorrect number of arguments passed to function (expected %" PRIu8
+        ", got %" PRIu8 ").",
+        function->argcount, argcount);
     return;
   }
 
@@ -51,14 +59,16 @@ static void call(ch_context *context, ch_function* function, ch_argcount argcoun
   context->pcurrent = function_ptr;
 }
 
-static void try_call(ch_context *context, ch_primitive primitive, ch_argcount argcount) {
+static void try_call(ch_context *context, ch_primitive primitive,
+                     ch_argcount argcount) {
   if (!IS_OBJECT(primitive)) {
     ch_runtime_error(context, EXIT_INCORRECT_TYPE,
-                     "Attempted to invoke type %d as a function.", primitive.type);
+                     "Attempted to invoke type %d as a function.",
+                     primitive.type);
     return;
   }
 
-  ch_object* object = AS_OBJECT(primitive);
+  ch_object *object = AS_OBJECT(primitive);
 
   if (IS_FUNCTION(object)) {
     call(context, AS_FUNCTION(object), argcount);
@@ -66,13 +76,14 @@ static void try_call(ch_context *context, ch_primitive primitive, ch_argcount ar
   }
 
   if (IS_NATIVE(object)) {
-    ch_native* native = AS_NATIVE(object);
+    ch_native *native = AS_NATIVE(object);
     native->function(context, argcount);
     return;
   }
 
   ch_runtime_error(context, EXIT_INCORRECT_TYPE,
-                    "Attempted to invoke object type %d as a function.", object->type);
+                   "Attempted to invoke object type %d as a function.",
+                   object->type);
 }
 
 static void call_return(ch_context *context) {
@@ -105,7 +116,7 @@ ch_context ch_vm_newcontext(ch_program program) {
   return context;
 }
 
-void ch_vm_free(ch_context* context) {
+void ch_vm_free(ch_context *context) {
   ch_table_free(&context->globals);
   ch_table_free(&context->strings);
 }
@@ -122,19 +133,23 @@ void ch_vm_free(ch_context* context) {
     break;                                                                     \
   }
 
-static void add_global(ch_context* context, ch_string* name, ch_primitive value) {
-  if(!ch_table_set(&context->globals, name, value)) ch_runtime_error(context, EXIT_GLOBAL_ALREADY_EXISTS, "Global variable has already been defined: %s.", name->value);
+static void add_global(ch_context *context, ch_string *name,
+                       ch_primitive value) {
+  if (!ch_table_set(&context->globals, name, value))
+    ch_runtime_error(context, EXIT_GLOBAL_ALREADY_EXISTS,
+                     "Global variable has already been defined: %s.",
+                     name->value);
 }
 
-static ch_string* read_string(ch_context* context) {
+static ch_string *read_string(ch_context *context) {
   ch_dataptr string_ptr = VM_READ_PTR(context);
-  ch_bytecode_string string = ch_bytecode_load_string(&context->program, string_ptr);
+  ch_bytecode_string string =
+      ch_bytecode_load_string(&context->program, string_ptr);
 
   return ch_loadstring(context, string.value, string.size, false);
 }
 
-
-ch_primitive ch_vm_call(ch_context* context, ch_string* function_name) {
+ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
   while (context->exit == RUNNING) {
     uint8_t current = *(context->pcurrent);
     context->pcurrent++;
@@ -210,7 +225,8 @@ ch_primitive ch_vm_call(ch_context* context, ch_string* function_name) {
     case OP_FUNCTION: {
       ch_dataptr function_ptr = VM_READ_PTR(context);
       ch_argcount argcount = VM_READ_ARGCOUNT(context);
-      ch_primitive function = MAKE_OBJECT(ch_loadfunction(function_ptr, argcount));
+      ch_primitive function =
+          MAKE_OBJECT(ch_loadfunction(function_ptr, argcount));
       STACK_PUSH(context, function);
       break;
     }
@@ -255,9 +271,10 @@ ch_primitive ch_vm_call(ch_context* context, ch_string* function_name) {
     case OP_LOAD_GLOBAL: {
       ch_string *name = read_string(context);
 
-      ch_primitive* global = ch_table_get(&context->globals, name);
+      ch_primitive *global = ch_table_get(&context->globals, name);
       if (global == NULL) {
-        ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND, "Global variable does not exist: %s.", name->value);
+        ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND,
+                         "Global variable does not exist: %s.", name->value);
         break;
       }
 
@@ -282,9 +299,10 @@ ch_primitive ch_vm_call(ch_context* context, ch_string* function_name) {
   return context->program_return_value;
 }
 
-bool ch_addnative(ch_context* context, ch_native_function function, const char *name) {
-  ch_string* s = ch_loadstring(context, name, strlen(name), true);
-  ch_native* native = ch_loadnative(function);
+bool ch_addnative(ch_context *context, ch_native_function function,
+                  const char *name) {
+  ch_string *s = ch_loadstring(context, name, strlen(name), true);
+  ch_native *native = ch_loadnative(function);
 
   add_global(context, s, MAKE_OBJECT(native));
 }

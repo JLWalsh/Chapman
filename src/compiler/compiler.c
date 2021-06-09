@@ -36,14 +36,15 @@ typedef struct {
 
 static void advance(ch_compilation *comp);
 static bool consume(ch_compilation *comp, ch_token_kind kind,
-             const char *error_message, ch_token *out_token);
+                    const char *error_message, ch_token *out_token);
 
 static void error(ch_compilation *comp, const char *error_message, ...);
 static void synchronize_outside_function(ch_compilation *comp);
 static void synchronize_in_function(ch_compilation *comp);
 
-static void free_compiler(ch_compilation* comp);
-static ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size);
+static void free_compiler(ch_compilation *comp);
+static ch_dataptr emit_string(ch_compilation *comp, const char *value,
+                              size_t size);
 
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
@@ -70,10 +71,10 @@ static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
 static void add_variable(ch_compilation *comp, ch_lexeme name);
 static void add_local(ch_compilation *comp, ch_lexeme name);
 static void add_global(ch_compilation *comp, ch_lexeme name);
-static void load_local(ch_compilation* comp, uint8_t offset);
-static void load_global(ch_compilation* comp, ch_lexeme name);
+static void load_local(ch_compilation *comp, uint8_t offset);
+static void load_global(ch_compilation *comp, ch_lexeme name);
 
-static void call_main(ch_compilation* comp);
+static void call_main(ch_compilation *comp);
 
 // Expression parsing
 static void parse(ch_compilation *comp, ch_precedence_level prec);
@@ -130,10 +131,10 @@ bool ch_compile(const uint8_t *program, size_t program_size,
   return !comp.has_errors;
 }
 
-void call_main(ch_compilation* comp) {
+void call_main(ch_compilation *comp) {
   // Load main function
   EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
-  ch_lexeme main_name = {.start="main", .size=4};
+  ch_lexeme main_name = {.start = "main", .size = 4};
   ch_dataptr string_ptr = emit_string(comp, main_name.start, main_name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 
@@ -229,8 +230,8 @@ void synchronize_in_function(ch_compilation *comp) {
   }
 }
 
-void free_compiler(ch_compilation* comp) {
-  for(uint32_t i = 0; i < comp->strings.size; i++) {
+void free_compiler(ch_compilation *comp) {
+  for (uint32_t i = 0; i < comp->strings.size; i++) {
     ch_table_entry entry = comp->strings.entries[i];
     if (entry.key != NULL) {
       // Strings allocated in emit_string
@@ -239,25 +240,25 @@ void free_compiler(ch_compilation* comp) {
   }
 }
 
-ch_string* new_string(const char* value, size_t size) {
-  ch_string* string = (ch_string*) malloc(sizeof(ch_string));
+ch_string *new_string(const char *value, size_t size) {
+  ch_string *string = (ch_string *)malloc(sizeof(ch_string));
   ch_initstring(string, value, size);
 
   return string;
 }
 
-ch_dataptr emit_string(ch_compilation *comp, const char* value, size_t size) {
-  ch_string* same_string = ch_table_find_string(&comp->strings, value, size);
+ch_dataptr emit_string(ch_compilation *comp, const char *value, size_t size) {
+  ch_string *same_string = ch_table_find_string(&comp->strings, value, size);
 
-  if(same_string != NULL) {
-    ch_primitive* position = ch_table_get(&comp->strings, same_string);
-    return (ch_dataptr) position->number_value;
+  if (same_string != NULL) {
+    ch_primitive *position = ch_table_get(&comp->strings, same_string);
+    return (ch_dataptr)position->number_value;
   }
 
   ch_dataptr string_ptr;
   EMIT_DATA_STRING(GET_EMIT(comp), value, size, string_ptr);
 
-  ch_string* key = new_string(value, size);
+  ch_string *key = new_string(value, size);
   ch_table_set(&comp->strings, key, MAKE_NUMBER(string_ptr));
 
   return string_ptr;
@@ -469,12 +470,12 @@ void add_global(ch_compilation *comp, ch_lexeme name) {
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 }
 
-void load_local(ch_compilation* comp, uint8_t offset) {
+void load_local(ch_compilation *comp, uint8_t offset) {
   EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
   EMIT_PTR(GET_EMIT(comp), offset);
 }
 
-void load_global(ch_compilation* comp, ch_lexeme name) {
+void load_global(ch_compilation *comp, ch_lexeme name) {
   EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
   ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);

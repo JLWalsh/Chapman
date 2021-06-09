@@ -25,4 +25,5 @@ ch_primitive *ch_table_get(ch_table *table, ch_string *key);
 
 bool ch_table_delete(ch_table *table, ch_string *key);
 
-ch_string* ch_table_find_string(ch_table* table, const char* value, size_t size);
+ch_string *ch_table_find_string(ch_table *table, const char *value,
+                                size_t size);

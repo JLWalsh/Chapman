@@ -25,7 +25,7 @@ char *load_program() {
   return program;
 }
 
-void print(ch_context* vm, ch_argcount argcount) {
+void print(ch_context *vm, ch_argcount argcount) {
   ch_primitive popped = ch_pop(vm);
   printf("Got number: %f", popped.number_value);
 }
@@ -44,7 +44,7 @@ int main(void) {
   ch_primitive return_value = ch_runfunction(&vm, "main");
   ch_freevm(&vm);
   printf("Program returned %f", return_value.number_value);
-  //ch_disassemble(&compiled_program);
+  // ch_disassemble(&compiled_program);
 
   return 0;
 }

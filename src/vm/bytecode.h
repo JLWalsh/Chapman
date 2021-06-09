@@ -8,7 +8,8 @@
 
 typedef struct {
   size_t size;
-  char* value;
+  char *value;
 } ch_bytecode_string;
 
-ch_bytecode_string ch_bytecode_load_string(const ch_program *program, ch_dataptr location);
+ch_bytecode_string ch_bytecode_load_string(const ch_program *program,
+                                           ch_dataptr location);
