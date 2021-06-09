@@ -1,5 +1,6 @@
 #pragma once
 #include "defs.h"
+#include <stddef.h>
 #include <stdbool.h>
 
 #define OBJECT_TYPE(object) ((object)->type)
