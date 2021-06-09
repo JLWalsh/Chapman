@@ -99,7 +99,8 @@ static ch_context create_context(ch_program program) {
               .size = 0,
           },
       .exit = RUNNING,
-      .program = program
+      .program = program,
+      .program_return_value = MAKE_NULL(),
   };
 
   ch_table_create(&context.globals);
@@ -142,7 +143,7 @@ void print(ch_context* context, ch_argcount argcount) {
   printf("NATIVE PRINT %f\n", primitive.number_value);
 }
 
-void ch_run(ch_program program) {
+ch_primitive ch_run(ch_program program) {
   ch_context context = create_context(program);
 
   ch_addnative(&context, print, "print");
@@ -241,7 +242,13 @@ void ch_run(ch_program program) {
 
       call_return(&context);
 
-      STACK_PUSH(&context, returned_value);
+      // Check if we are returning from the main function
+      if (context.call_stack.size != 0) {
+        STACK_PUSH(&context, returned_value);
+      } else {
+        context.program_return_value = returned_value;
+      }
+
       break;
     }
     case OP_RETURN_VOID: {
@@ -286,6 +293,8 @@ void ch_run(ch_program program) {
   }
 
   teardown_context(&context);
+
+  return context.program_return_value;
 }
 
 bool ch_addnative(ch_context* context, ch_native_function function, const char *name) {

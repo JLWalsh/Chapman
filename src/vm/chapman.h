@@ -59,9 +59,11 @@ typedef struct ch_context {
   // For interned strings
   ch_table strings;
   ch_program program;
+
+  ch_primitive program_return_value;
 } ch_context;
 
-void ch_run(ch_program program);
+ch_primitive ch_run(ch_program program);
 
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);

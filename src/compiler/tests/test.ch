@@ -9,6 +9,8 @@ val z = 20;
     val z = otherFunction(addTwo(y));
 
     print(z);
+
+    return z;
 }
 
 #otherFunction(a) {

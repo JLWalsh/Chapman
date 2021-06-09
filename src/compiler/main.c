@@ -34,7 +34,8 @@ int main(void) {
     return 0;
   }
 
-  ch_run(compiled_program);
+  ch_primitive return_value = ch_run(compiled_program);
+  printf("Program returned %f", return_value.number_value);
   //ch_disassemble(&compiled_program);
 
   return 0;
