@@ -170,55 +170,92 @@ static ch_string *read_string(ch_context *context) {
   return ch_loadstring(context, string.value, string.size, false);
 }
 
+static void binary_op_args(ch_context *context, ch_primitive args[2]) {
+  ch_stack_pop(&context->stack, &args[0]);
+  ch_stack_pop(&context->stack, &args[1]);
+}
+
+static ch_primitive binary_op_number(ch_context* context, ch_primitive args[2], ch_op opcode) {
+  double result = 0;
+  switch(opcode) {
+    case OP_ADD: {
+      result = AS_NUMBER(args[0]) + AS_NUMBER(args[1]);
+      break;
+    }
+    case OP_SUB: {
+      result = AS_NUMBER(args[0]) - AS_NUMBER(args[1]);
+      break;
+    }
+    case OP_MUL: {
+      result = AS_NUMBER(args[0]) * AS_NUMBER(args[1]);
+      break;
+    }
+    case OP_DIV: {
+      result = AS_NUMBER(args[0]) / AS_NUMBER(args[1]);
+      break;
+    }
+  }
+
+  return MAKE_NUMBER(result);
+}
+
+static ch_primitive binary_op_string(ch_context* context, ch_object* args[2], ch_op opcode) {
+  if (opcode != OP_ADD) {
+    ch_runtime_error(context, EXIT_UNSUPPORTED_OPERATION, "Can only use + operator on strings.");
+    return MAKE_NULL();
+  }
+
+  ch_string* result = ch_concatstring(context, AS_STRING(args[0]), AS_STRING(args[1]));
+
+  return MAKE_OBJECT(result);
+}
+
 ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
   while (context->exit == RUNNING) {
-    uint8_t current = *(context->pcurrent);
+    uint8_t opcode = *(context->pcurrent);
     context->pcurrent++;
 
-    switch (current) {
+    switch (opcode) {
     case OP_NUMBER: {
       double value = LOAD_NUMBER(context, VM_READ_PTR(context));
       STACK_PUSH(context, MAKE_NUMBER(value));
       break;
     }
-    case OP_ADD: {
-      ch_primitive left;
-      ch_primitive right;
-      STACK_POP(context, &left);
-      STACK_POP(context, &right);
-
-      double result = left.number_value + right.number_value;
-      STACK_PUSH(context, MAKE_NUMBER(result));
-      break;
-    }
-    case OP_SUB: {
-      ch_primitive left;
-      ch_primitive right;
-      STACK_POP(context, &left);
-      STACK_POP(context, &right);
-
-      double result = left.number_value - right.number_value;
-      STACK_PUSH(context, MAKE_NUMBER(result));
-      break;
-    }
-    case OP_MUL: {
-      ch_primitive left;
-      ch_primitive right;
-      STACK_POP(context, &left);
-      STACK_POP(context, &right);
-
-      double result = left.number_value * right.number_value;
-      STACK_PUSH(context, MAKE_NUMBER(result));
-      break;
-    }
+    case OP_ADD: 
+    case OP_SUB:
+    case OP_MUL:
     case OP_DIV: {
-      ch_primitive left;
-      ch_primitive right;
-      STACK_POP(context, &left);
-      STACK_POP(context, &right);
+      ch_primitive args[2];
+      binary_op_args(context, args);
 
-      double result = left.number_value / right.number_value;
-      STACK_PUSH(context, MAKE_NUMBER(result));
+      if (args[0].type != args[1].type) {
+        ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Can only apply binary operator on matching types.");
+        break;
+      }
+
+      ch_primitive result;
+      if (IS_NUMBER(args[0])) {
+        result = binary_op_number(context, args, opcode);
+        break;
+      }
+
+      if (IS_OBJECT(args[0])) {
+        ch_object* object_args[2] = {AS_OBJECT(args[0]), AS_OBJECT(args[1])};
+        if (object_args[0]->type != object_args[1]->type) {
+          ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Can only apply binary operator on matching object types.");
+          break;
+        }
+
+        if (IS_STRING(object_args[0])) {
+          result = binary_op_string(context, object_args, opcode);
+          break;
+        }
+
+        ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Cannot apply binary operation to object type: %d", object_args[0]->type);
+        break;
+      }
+
+      ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Cannot apply binary operation to primitive type: %d", args[0].type);
       break;
     }
     case OP_HALT: {
@@ -260,7 +297,7 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       ch_primitive entry;
       STACK_POP(context, &entry);
 
-      set_global(context, name, entry, current == OP_SET_GLOBAL ? REDEFINE_GLOBAL : CREATE_GLOBAL);
+      set_global(context, name, entry, opcode == OP_SET_GLOBAL ? REDEFINE_GLOBAL : CREATE_GLOBAL);
 
       break;
     }

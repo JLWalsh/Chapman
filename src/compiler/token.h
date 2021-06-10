@@ -30,6 +30,8 @@ typedef enum {
   TK_CCLOSE,
 
   TK_ID,
+  TK_STRING,
+
   TK_NUM,
   TK_RETURN,
 
@@ -57,6 +59,6 @@ typedef struct {
   uint16_t line;
 } ch_token_state;
 
-ch_token_state ch_token_init(const uint8_t *program, size_t size);
+ch_token_state init_token(const uint8_t *program, size_t size);
 
 bool ch_token_next(ch_token_state *state, ch_token *next);

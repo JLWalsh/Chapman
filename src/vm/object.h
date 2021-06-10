@@ -63,4 +63,6 @@ ch_native *ch_loadnative(ch_native_function function);
 ch_string *ch_loadstring(ch_context *vm, const char *value, size_t size,
                          bool copy_string);
 
+ch_string *ch_concatstring(ch_context *vm, ch_string* left, ch_string* right);
+
 void ch_initstring(ch_string *string, const char *value, size_t size);

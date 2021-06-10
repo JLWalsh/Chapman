@@ -104,7 +104,7 @@ bool ch_compile(const uint8_t *program, size_t program_size,
                 ch_program *output) {
   ch_emit_scope global_emit_scope;
   ch_compilation comp = {
-      .token_state = ch_token_init(program, program_size),
+      .token_state = init_token(program, program_size),
       .scope = {.locals_size = 0},
       .is_panic = false,
       .has_errors = false,

@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define IS_AT_END(state_ptr) ((intptr_t) (state_ptr)->current >= (intptr_t) (state_ptr)->program + (intptr_t) (state_ptr)->size)
+
 typedef struct {
   char *name;
   ch_token_kind kind;
@@ -22,12 +24,15 @@ const bool tokens_with_lexemes[NUM_TOKENS] = {[TK_ID] = true, [TK_NUM] = true};
 
 const uint8_t num_keywords = sizeof(keywords) / sizeof(keywords[0]);
 
-ch_token_kind ch_parse_token_kind(const char *token_start, size_t token_size);
+char peek(ch_token_state* state);
 
-ch_token ch_get_token(const char *start, ch_token_state *state,
+ch_token_kind parse_token_kind(const char *token_start, size_t token_size);
+
+ch_token get_token(const char *start, ch_token_state *state,
                       ch_token_kind kind);
+ch_token get_token_end(const char* start, const char* end, ch_token_kind kind, ch_token_state* state);
 
-ch_token_state ch_token_init(const uint8_t *program, size_t size) {
+ch_token_state init_token(const uint8_t *program, size_t size) {
   return (ch_token_state){
       .program = program, .size = size, .current = (char *)program, .line = 1};
 }
@@ -35,42 +40,42 @@ ch_token_state ch_token_init(const uint8_t *program, size_t size) {
 bool ch_token_next(ch_token_state *state, ch_token *next) {
   char *start = state->current;
 
-  while ((intptr_t)state->current != (intptr_t)(state->program + state->size)) {
+  while (!IS_AT_END(state)) {
     char current = *state->current++;
 
     switch (current) {
     case '=':
-      *next = ch_get_token(start, state, TK_EQ);
+      *next = get_token(start, state, TK_EQ);
       return true;
     case '+':
-      *next = ch_get_token(start, state, TK_PLUS);
+      *next = get_token(start, state, TK_PLUS);
       return true;
     case '-':
-      *next = ch_get_token(start, state, TK_MINUS);
+      *next = get_token(start, state, TK_MINUS);
       return true;
     case ';':
-      *next = ch_get_token(start, state, TK_SEMI);
+      *next = get_token(start, state, TK_SEMI);
       return true;
     case ',':
-      *next = ch_get_token(start, state, TK_COMMA);
+      *next = get_token(start, state, TK_COMMA);
       return true;
     case '(':
-      *next = ch_get_token(start, state, TK_POPEN);
+      *next = get_token(start, state, TK_POPEN);
       return true;
     case ')':
-      *next = ch_get_token(start, state, TK_PCLOSE);
+      *next = get_token(start, state, TK_PCLOSE);
       return true;
     case '{':
-      *next = ch_get_token(start, state, TK_COPEN);
+      *next = get_token(start, state, TK_COPEN);
       return true;
     case '}':
-      *next = ch_get_token(start, state, TK_CCLOSE);
+      *next = get_token(start, state, TK_CCLOSE);
       return true;
     case '\0':
-      *next = ch_get_token(start, state, TK_EOF);
+      *next = get_token(start, state, TK_EOF);
       return true;
     case '#':
-      *next = ch_get_token(start, state, TK_POUND);
+      *next = get_token(start, state, TK_POUND);
       return true;
     case '\n':
       state->line++;
@@ -88,11 +93,32 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
         continue;
       }
 
-      *next = ch_get_token(start, state, TK_FSLASH);
+      *next = get_token(start, state, TK_FSLASH);
       return true;
     case '*':
-      *next = ch_get_token(start, state, TK_STAR);
+      *next = get_token(start, state, TK_STAR);
       return true;
+    case '"': {
+      while(!IS_AT_END(state) && peek(state) != '"') {
+        if (*state->current == '\\' && peek(state) == '"') {
+          state->current++;
+        }
+
+        state->current++;
+      }
+      
+      if (IS_AT_END(state)) {
+        ch_tk_error("Expected end of string", state);
+        return false;
+      }
+
+      // Consume last string char, and "
+      state->current += 2;
+
+      get_token_end(start + 1, state->current - 1, TK_STRING, state);
+
+      return true;
+    }
     default:
       if (isspace(current)) {
         start = state->current;
@@ -111,8 +137,8 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
           return false;
         }
 
-        ch_token_kind token_kind = ch_parse_token_kind(start, lexeme_size);
-        *next = ch_get_token(start, state, token_kind);
+        ch_token_kind token_kind = parse_token_kind(start, lexeme_size);
+        *next = get_token(start, state, token_kind);
 
         return true;
       }
@@ -138,7 +164,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
           }
         }
 
-        *next = ch_get_token(start, state, TK_NUM);
+        *next = get_token(start, state, TK_NUM);
         return true;
       }
 
@@ -147,11 +173,19 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
     }
   }
 
-  *next = ch_get_token(start, state, TK_EOF);
+  *next = get_token(start, state, TK_EOF);
   return true;
 }
 
-ch_token_kind ch_parse_token_kind(const char *token_start, size_t token_size) {
+char peek(ch_token_state* state) {
+  if (IS_AT_END(state)) {
+    return 0;
+  }
+
+  return state->current[1];
+}
+
+ch_token_kind parse_token_kind(const char *token_start, size_t token_size) {
   for (uint8_t i = 0; i < num_keywords; i++) {
     if (token_size != strlen(keywords[i].name)) {
       continue;
@@ -165,12 +199,16 @@ ch_token_kind ch_parse_token_kind(const char *token_start, size_t token_size) {
   return TK_ID;
 }
 
-ch_token ch_get_token(const char *start, ch_token_state *state,
+ch_token get_token(const char *start, ch_token_state *state,
                       ch_token_kind kind) {
+  return get_token_end(start, state->current, kind, state);
+}
+
+ch_token get_token_end(const char* start, const char* end, ch_token_kind kind, ch_token_state* state) {
   ch_token token = {.kind = kind, .line = state->line};
 
   if (tokens_with_lexemes[kind]) {
-    token.lexeme = (ch_lexeme){.start = start, .size = state->current - start};
+    token.lexeme = (ch_lexeme){.start = start, .size = end - start};
   }
 
   return token;

@@ -51,6 +51,25 @@ ch_string *ch_loadstring(ch_context *vm, const char *value, size_t size,
   return string;
 }
 
+ch_string *ch_concatstring(ch_context *vm, ch_string* left, ch_string* right) {
+  size_t size = left->size + right->size;
+  char *value = (char*) malloc(size + 1);
+  memcpy(value, left->value, left->size);
+  memcpy(value + left->size, right->value, right->size);
+  value[size] = '\0';
+
+  ch_string *interned_string = ch_table_find_string(&vm->strings, value, size);
+  if (interned_string != NULL) {
+    free(value);
+    return interned_string;
+  }
+
+  ch_string *string = new_string(value, size);
+  ch_table_set(&vm->strings, string, MAKE_NULL());
+
+  return string;
+}
+
 void ch_initstring(ch_string *string, const char *value, size_t size) {
   string->value = value;
   string->size = size;

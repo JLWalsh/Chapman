@@ -1,4 +1,4 @@
-val z = 20;
+val z = "hello, w\orld!";
 
 #main() {
     val y = 32;
