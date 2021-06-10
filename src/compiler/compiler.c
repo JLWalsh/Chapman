@@ -64,6 +64,7 @@ static void identifier(ch_compilation *comp, bool must_have_invocation);
 static void declaration(ch_compilation *comp);
 static void scope(ch_compilation *comp);
 static void function_statement(ch_compilation *comp);
+static void assignement(ch_compilation* comp, ch_lexeme name);
 
 static uint8_t begin_scope(ch_compilation *comp);
 static void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
@@ -71,8 +72,8 @@ static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
 static void add_variable(ch_compilation *comp, ch_lexeme name);
 static void add_local(ch_compilation *comp, ch_lexeme name);
 static void add_global(ch_compilation *comp, ch_lexeme name);
-static void load_local(ch_compilation *comp, uint8_t offset);
-static void load_global(ch_compilation *comp, ch_lexeme name);
+static void load_variable(ch_compilation *comp, ch_lexeme name);
+static void set_variable(ch_compilation* comp, ch_lexeme name);
 
 static void call_main(ch_compilation *comp);
 
@@ -84,7 +85,8 @@ static void binary(ch_compilation *comp);
 static void unary(ch_compilation *comp);
 static void number(ch_compilation *comp);
 static void return_statement(ch_compilation *comp);
-static ch_argcount invocation(ch_compilation *comp);
+static void invocation(ch_compilation *comp, ch_lexeme name);
+static ch_argcount invocation_arguments(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN] = {PREC_NONE, grouping, NULL},
@@ -344,6 +346,7 @@ ch_argcount function_arglist(ch_compilation *comp) {
     ch_token name;
     if (!consume(comp, TK_ID, "Expected variable name.", &name))
       return 0;
+
     add_local(comp, name.lexeme);
 
     if (comp->current.kind != TK_PCLOSE) {
@@ -370,40 +373,42 @@ void statement_identifier(ch_compilation *comp) {
 
 void expression_identifier(ch_compilation *comp) { identifier(comp, false); }
 
-void identifier(ch_compilation *comp, bool must_have_invocation) {
+void identifier(ch_compilation *comp, bool is_statement) {
   ch_token name = comp->previous;
 
-  uint8_t offset;
-  bool is_local = scope_lookup(comp, name.lexeme, &offset);
+  if (is_statement) {
+    switch(comp->current.kind) {
+      case TK_POPEN: {
+        invocation(comp, name.lexeme);
+        break;
+      }
+      case TK_EQ: {
+        assignement(comp, name.lexeme);
+        break;
+      }
+      default: {
+        error(comp, "Expected assignement or invocation.");
+      }
+    }
 
-  bool is_invocation = comp->current.kind == TK_POPEN;
-  if (!is_invocation && must_have_invocation) {
-    error(comp, "Expected invocation.");
     return;
   }
 
-  ch_argcount argcount;
-  if (is_invocation) {
-    argcount = invocation(comp);
-  }
-
-  if (is_local) {
-    load_local(comp, offset);
-  } else {
-    load_global(comp, name.lexeme);
-  }
-
-  if (is_invocation) {
-    EMIT_OP(GET_EMIT(comp), OP_CALL);
-    EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
-  }
-
-  return;
+  load_variable(comp, name.lexeme);
 }
 
-ch_argcount invocation(ch_compilation *comp) {
+void invocation(ch_compilation *comp, ch_lexeme name) {
   consume(comp, TK_POPEN, "Expected start of invocation", NULL);
+  ch_argcount argcount = invocation_arguments(comp);
+  consume(comp, TK_PCLOSE, "Expected end of arguments list.", NULL);
 
+  load_variable(comp, name);
+
+  EMIT_OP(GET_EMIT(comp), OP_CALL);
+  EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+}
+
+ch_argcount invocation_arguments(ch_compilation* comp) {
   bool has_comma = false;
   ch_argcount argcount = 0;
   while (comp->current.kind != TK_PCLOSE && comp->current.kind != TK_EOF) {
@@ -420,10 +425,7 @@ ch_argcount invocation(ch_compilation *comp) {
 
   if (has_comma) {
     error(comp, "Expected argument.");
-    return argcount;
   }
-
-  consume(comp, TK_PCLOSE, "Expected end of arguments list.", NULL);
 
   return argcount;
 }
@@ -433,9 +435,14 @@ void declaration(ch_compilation *comp) {
   ch_token name;
   if (!consume(comp, TK_ID, "Expected variable name.", &name))
     return;
-  consume(comp, TK_EQ, "Expected variable initializer.", NULL);
 
-  expression(comp);
+  /*
+    We still want the variable to be registered even if the user forgot its initializer.
+    That way, it won't cause another error where the variable is said not to exist even if it was declared.
+  */
+  if(consume(comp, TK_EQ, "Expected variable initializer.", NULL)) {
+    expression(comp);
+  }
 
   add_variable(comp, name.lexeme);
 }
@@ -465,20 +472,37 @@ void add_local(ch_compilation *comp, ch_lexeme name) {
 }
 
 void add_global(ch_compilation *comp, ch_lexeme name) {
-  EMIT_OP(GET_EMIT(comp), OP_SET_GLOBAL);
+  EMIT_OP(GET_EMIT(comp), OP_DEFINE_GLOBAL);
   ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 }
 
-void load_local(ch_compilation *comp, uint8_t offset) {
-  EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
-  EMIT_PTR(GET_EMIT(comp), offset);
+void load_variable(ch_compilation *comp, ch_lexeme name) {
+  uint8_t offset;
+  bool is_local = scope_lookup(comp, name, &offset);
+
+  if (is_local) {
+    EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
+    EMIT_PTR(GET_EMIT(comp), offset);
+  } else {
+    EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
+    ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
+    EMIT_PTR(GET_EMIT(comp), string_ptr);
+  }
 }
 
-void load_global(ch_compilation *comp, ch_lexeme name) {
-  EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
-  ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
-  EMIT_PTR(GET_EMIT(comp), string_ptr);
+void set_variable(ch_compilation* comp, ch_lexeme name) {
+  uint8_t offset;
+  bool is_local = scope_lookup(comp, name, &offset);
+
+  if (is_local) {
+    EMIT_OP(GET_EMIT(comp), OP_SET_LOCAL);
+    EMIT_PTR(GET_EMIT(comp), offset);
+  } else {
+    EMIT_OP(GET_EMIT(comp), OP_SET_GLOBAL);
+    ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
+    EMIT_PTR(GET_EMIT(comp), string_ptr);
+  }
 }
 
 void scope(ch_compilation *comp) {
@@ -546,6 +570,16 @@ void function_statement(ch_compilation *comp) {
 
   if (comp->is_panic)
     synchronize_in_function(comp);
+}
+
+static void assignement(ch_compilation* comp, ch_lexeme name) {
+  if(!consume(comp, TK_EQ, "Expected assignement.", NULL)) {
+    return;
+  }
+
+  expression(comp);
+
+  set_variable(comp, name);
 }
 
 uint8_t begin_scope(ch_compilation *comp) { return comp->scope.locals_size; }

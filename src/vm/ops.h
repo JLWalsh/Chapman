@@ -13,7 +13,9 @@ typedef enum {
   OP_DIV,
 
   OP_LOAD_LOCAL,
+  OP_SET_LOCAL,
   OP_SET_GLOBAL,
+  OP_DEFINE_GLOBAL,
   OP_LOAD_GLOBAL,
 
   OP_CALL,

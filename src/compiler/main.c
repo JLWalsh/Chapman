@@ -44,7 +44,8 @@ int main(void) {
   ch_primitive return_value = ch_runfunction(&vm, "main");
   ch_freevm(&vm);
   printf("Program returned %f", return_value.number_value);
-  // ch_disassemble(&compiled_program);
+
+  //ch_disassemble(&compiled_program);
 
   return 0;
 }

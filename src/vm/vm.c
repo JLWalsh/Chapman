@@ -141,6 +141,27 @@ static void add_global(ch_context *context, ch_string *name,
                      name->value);
 }
 
+#define CREATE_GLOBAL true
+#define REDEFINE_GLOBAL false
+static void set_global(ch_context *context, ch_string* name, ch_primitive value, bool create) {
+  ch_primitive* entry_found = ch_table_get(&context->globals, name);
+  if (create) {
+    if (entry_found != NULL) {
+      ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND, "Cannot redefine global variable: %s.", name->value);
+      return;
+    }
+
+    ch_table_set(&context->globals, name, value);
+  } else {
+    if (entry_found == NULL) {
+      ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND, "Cannot assign to non existing global variable: %s.", name->value);
+      return;
+    }
+
+    *entry_found = value;
+  }
+}
+
 static ch_string *read_string(ch_context *context) {
   ch_dataptr string_ptr = VM_READ_PTR(context);
   ch_bytecode_string string =
@@ -222,6 +243,41 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       ch_stack_copy(&context->stack, index);
       break;
     }
+    case OP_SET_LOCAL: {
+      ch_primitive entry;
+      STACK_POP(context, &entry);
+
+      uint8_t offset = (uint8_t)VM_READ_PTR(context);
+      ch_stack_addr index = CURRENT_CALL(context).stack_addr + offset;
+
+      ch_stack_set(&context->stack, index, entry);
+      break;
+    }
+    case OP_DEFINE_GLOBAL:
+    case OP_SET_GLOBAL: {
+      ch_string *name = read_string(context);
+
+      ch_primitive entry;
+      STACK_POP(context, &entry);
+
+      set_global(context, name, entry, current == OP_SET_GLOBAL ? REDEFINE_GLOBAL : CREATE_GLOBAL);
+
+      break;
+    }
+    case OP_LOAD_GLOBAL: {
+      ch_string *name = read_string(context);
+
+      ch_primitive *global = ch_table_get(&context->globals, name);
+      if (global == NULL) {
+        ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND,
+                         "Global variable does not exist: %s.", name->value);
+        break;
+      }
+
+      STACK_PUSH(context, *global);
+
+      break;
+    }
     case OP_FUNCTION: {
       ch_dataptr function_ptr = VM_READ_PTR(context);
       ch_argcount argcount = VM_READ_ARGCOUNT(context);
@@ -256,30 +312,6 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
     }
     case OP_RETURN_VOID: {
       call_return(context);
-      break;
-    }
-    case OP_SET_GLOBAL: {
-      ch_string *name = read_string(context);
-
-      ch_primitive entry;
-      STACK_POP(context, &entry);
-
-      add_global(context, name, entry);
-
-      break;
-    }
-    case OP_LOAD_GLOBAL: {
-      ch_string *name = read_string(context);
-
-      ch_primitive *global = ch_table_get(&context->globals, name);
-      if (global == NULL) {
-        ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND,
-                         "Global variable does not exist: %s.", name->value);
-        break;
-      }
-
-      STACK_PUSH(context, *global);
-
       break;
     }
     default: {

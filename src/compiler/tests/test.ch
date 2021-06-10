@@ -6,9 +6,10 @@ val z = 20;
         return x + 2;
     };
 
-    val z = otherFunction(addTwo(y));
+    y = 128;
 
-    print(z);
+    print(y);
+    z = 42;
 
     return z;
 }

@@ -20,7 +20,9 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_DIV, DIV),
 
     NAME(OP_LOAD_LOCAL, LOAD_LOCAL),
+    NAME(OP_SET_LOCAL, SET_LOCAL),
     NAME(OP_SET_GLOBAL, SET_GLOBAL),
+    NAME(OP_DEFINE_GLOBAL, DEFINE_GLOBAL),
     NAME(OP_LOAD_GLOBAL, LOAD_GLOBAL),
 
     NAME(OP_CALL, CALL),
@@ -103,6 +105,7 @@ void ch_disassemble(const ch_program *program) {
       break;
     }
     case OP_LOAD_LOCAL:
+    case OP_SET_LOCAL:
     case OP_POPN: {
       i += print_ptr(program, i);
       break;
@@ -118,6 +121,7 @@ void ch_disassemble(const ch_program *program) {
       break;
     }
     case OP_LOAD_GLOBAL:
+    case OP_DEFINE_GLOBAL:
     case OP_SET_GLOBAL: {
       i += print_string_ptr(program, i);
       break;
