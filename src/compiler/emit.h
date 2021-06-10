@@ -42,6 +42,8 @@
     ch_uint32_to_le_array((string_size), le_value);                            \
     out_dataptr = EMIT_DATA(emit_ptr, &(le_value), sizeof(le_value));          \
     EMIT_DATA(emit_ptr, (string_ptr), (string_size));                          \
+    char null_byte = '\0'; \
+    EMIT_DATA((emit_ptr), &null_byte, 1); \
   }
 
 #define EMIT_DATA_DOUBLE(emit_ptr, value)                                      \

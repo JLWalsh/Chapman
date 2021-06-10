@@ -20,7 +20,11 @@ const ch_keyword keywords[] = {{"val", TK_VAL},
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)
-const bool tokens_with_lexemes[NUM_TOKENS] = {[TK_ID] = true, [TK_NUM] = true};
+const bool tokens_with_lexemes[NUM_TOKENS] = {
+  [TK_ID] = true, 
+  [TK_NUM] = true,
+  [TK_STRING] = true
+};
 
 const uint8_t num_keywords = sizeof(keywords) / sizeof(keywords[0]);
 
@@ -100,11 +104,11 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       return true;
     case '"': {
       while(!IS_AT_END(state) && peek(state) != '"') {
-        if (*state->current == '\\' && peek(state) == '"') {
+        state->current++;
+
+        if (*state->current == '\\') {
           state->current++;
         }
-
-        state->current++;
       }
       
       if (IS_AT_END(state)) {
@@ -115,7 +119,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       // Consume last string char, and "
       state->current += 2;
 
-      get_token_end(start + 1, state->current - 1, TK_STRING, state);
+      *next = get_token_end(start + 1, state->current - 1, TK_STRING, state);
 
       return true;
     }

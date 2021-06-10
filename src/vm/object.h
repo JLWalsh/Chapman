@@ -27,7 +27,6 @@
 typedef enum {
   TYPE_FUNCTION,
   TYPE_NATIVE,
-  TYPE_OBJECT,
   TYPE_STRING,
 } ch_object_type;
 

@@ -221,6 +221,11 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       STACK_PUSH(context, MAKE_NUMBER(value));
       break;
     }
+    case OP_STRING: {
+      ch_string* string = read_string(context);
+      STACK_PUSH(context, MAKE_OBJECT(string));
+      break;
+    }
     case OP_ADD: 
     case OP_SUB:
     case OP_MUL:

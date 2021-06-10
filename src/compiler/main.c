@@ -43,9 +43,41 @@ int main(void) {
   ch_addnative(&vm, print, "print");
   ch_primitive return_value = ch_runfunction(&vm, "main");
   ch_freevm(&vm);
-  printf("Program returned %f", return_value.number_value);
+  switch(return_value.type) {
+    case PRIMITIVE_BOOLEAN: {
+      printf("BOOLEAN: %d", return_value.boolean_value);
+      break;
+    }
+    case PRIMITIVE_NUMBER: {
+      printf("NUMBER: %f", return_value.number_value);
+      break;
+    }
+    case PRIMITIVE_NULL: {
+      printf("NULL");
+      break;
+    }
+    case PRIMITIVE_OBJECT: {
+      printf("OBJECT: ");
+      ch_object* obj = AS_OBJECT(return_value);
+      switch(obj->type) {
+        case TYPE_FUNCTION: {
+          printf("FUNCTION");
+          break;
+        }
+        case TYPE_NATIVE: {
+          printf("NATIVE");
+          break;
+        }
+        case TYPE_STRING: {
+          printf("STRING %s", AS_STRING(obj)->value);
+          break;
+        }
+      }
+      break;
+    }
+  }
 
-  //ch_disassemble(&compiled_program);
+  // ch_disassemble(&compiled_program);
 
   return 0;
 }

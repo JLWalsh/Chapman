@@ -83,10 +83,11 @@ static void grouping(ch_compilation *comp);
 static void expression(ch_compilation *comp);
 static void binary(ch_compilation *comp);
 static void unary(ch_compilation *comp);
-static void number(ch_compilation *comp);
 static void return_statement(ch_compilation *comp);
 static void invocation(ch_compilation *comp, ch_lexeme name);
 static ch_argcount invocation_arguments(ch_compilation* comp);
+static void number(ch_compilation *comp);
+static void string(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN] = {PREC_NONE, grouping, NULL},
@@ -95,6 +96,7 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_FSLASH] = {PREC_FACTOR, NULL, binary},
     [TK_STAR] = {PREC_FACTOR, NULL, binary},
     [TK_NUM] = {PREC_NONE, number, NULL},
+    [TK_STRING] = {PREC_NONE, string, NULL},
     [TK_ID] = {PREC_NONE, expression_identifier, NULL},
 };
 
@@ -279,10 +281,6 @@ void statement(ch_compilation *comp) {
     function(comp);
     break;
   }
-  // case TK_NATIVE: {
-  //   native_function(comp);
-  //   break;
-  // }
   default: {
     error(comp, "Expected statement.");
     return;
@@ -658,16 +656,6 @@ void unary(ch_compilation *comp) {
   }
 }
 
-void number(ch_compilation *comp) {
-  const char *start = comp->previous.lexeme.start;
-
-  double value = strtod(start, NULL);
-  ch_dataptr value_ptr = EMIT_DATA_DOUBLE(GET_EMIT(comp), value);
-
-  EMIT_OP(GET_EMIT(comp), OP_NUMBER);
-  EMIT_PTR(GET_EMIT(comp), value_ptr);
-}
-
 void return_statement(ch_compilation *comp) {
   consume(comp, TK_RETURN, "Expected return statement.", NULL);
 
@@ -680,4 +668,29 @@ void return_statement(ch_compilation *comp) {
   // Return statement with expression
   expression(comp);
   EMIT_OP(GET_EMIT(comp), OP_RETURN_VALUE);
+}
+
+void number(ch_compilation *comp) {
+  const char *start = comp->previous.lexeme.start;
+
+  double value = strtod(start, NULL);
+  ch_dataptr value_ptr = EMIT_DATA_DOUBLE(GET_EMIT(comp), value);
+
+  EMIT_OP(GET_EMIT(comp), OP_NUMBER);
+  EMIT_PTR(GET_EMIT(comp), value_ptr);
+}
+
+void string(ch_compilation* comp) {
+  ch_token string = comp->previous;
+
+  // We strip the string of escape chars
+  char cleaned_string[string.lexeme.size];
+  uint32_t output_i = 0;
+  for(uint32_t i = 0; i < string.lexeme.size; i++) {
+    if(string.lexeme.start[i] == '\\') i++;
+    cleaned_string[output_i++] = string.lexeme.start[i]; 
+  }
+  EMIT_OP(GET_EMIT(comp), OP_STRING);
+  ch_dataptr string_ptr = emit_string(comp, cleaned_string, output_i);
+  EMIT_PTR(GET_EMIT(comp), string_ptr);
 }

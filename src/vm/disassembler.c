@@ -19,6 +19,8 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_MUL, MUL),
     NAME(OP_DIV, DIV),
 
+    NAME(OP_STRING, STRING),
+
     NAME(OP_LOAD_LOCAL, LOAD_LOCAL),
     NAME(OP_SET_LOCAL, SET_LOCAL),
     NAME(OP_SET_GLOBAL, SET_GLOBAL),
@@ -120,6 +122,7 @@ void ch_disassemble(const ch_program *program) {
       i += print_argcount(program, i);
       break;
     }
+    case OP_STRING:
     case OP_LOAD_GLOBAL:
     case OP_DEFINE_GLOBAL:
     case OP_SET_GLOBAL: {

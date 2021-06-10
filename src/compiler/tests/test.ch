@@ -1,4 +1,4 @@
-val z = "hello, w\orld!";
+val z = "hello, world!";
 
 #main() {
     val y = 32;
@@ -9,9 +9,8 @@ val z = "hello, w\orld!";
     y = 128;
 
     print(y);
-    z = 42;
 
-    return z;
+    return print;
 }
 
 #otherFunction(a) {
