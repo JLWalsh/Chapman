@@ -7,6 +7,8 @@ set(VM_SOURCE_FILES
     bytecode.c
     object.c
     vm.c
+    natives.c
+    type_check.c
 )
 
 # List of headers to be exported alongside the library

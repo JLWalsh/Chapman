@@ -1,4 +1,4 @@
-val z = "hello, world!";
+val z = "hello, " + "world!";
 
 #main() {
     val y = 32;
@@ -6,11 +6,13 @@ val z = "hello, world!";
         return x + 2;
     };
 
-    y = 128;
+    if (y == 32) {
+        y = 64;
+    } else {
+        y = 128;
+    }
 
-    print(y);
-
-    return print;
+    return y;
 }
 
 #otherFunction(a) {

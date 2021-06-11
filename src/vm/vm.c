@@ -205,7 +205,8 @@ static ch_primitive binary_op_string(ch_context* context, ch_object* args[2], ch
     return MAKE_NULL();
   }
 
-  ch_string* result = ch_concatstring(context, AS_STRING(args[0]), AS_STRING(args[1]));
+  // Args are popped in reverse order
+  ch_string* result = ch_concatstring(context, AS_STRING(args[1]), AS_STRING(args[0]));
 
   return MAKE_OBJECT(result);
 }
@@ -240,7 +241,7 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
 
       ch_primitive result;
       if (IS_NUMBER(args[0])) {
-        result = binary_op_number(context, args, opcode);
+        STACK_PUSH(context, binary_op_number(context, args, opcode));
         break;
       }
 
@@ -252,7 +253,7 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
         }
 
         if (IS_STRING(object_args[0])) {
-          result = binary_op_string(context, object_args, opcode);
+          STACK_PUSH(context, binary_op_string(context, object_args, opcode));
           break;
         }
 

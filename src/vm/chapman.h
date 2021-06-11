@@ -19,6 +19,7 @@ typedef enum {
   EXIT_GLOBAL_ALREADY_EXISTS,
   EXIT_GLOBAL_NOT_FOUND,
   EXIT_UNSUPPORTED_OPERATION,
+  EXIT_USER_ERROR,
 } ch_exit;
 
 #define IS_PROGRAM_PTR_SAFE(context_ptr, program_ptr)                          \
@@ -73,8 +74,10 @@ ch_primitive ch_runfunction(ch_context *context, const char *function_name);
 void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);
 
-// name_size should include null byte
+// name_size should include null byte for strlen()
 bool ch_addnative(ch_context *context, ch_native_function function,
                   const char *name);
 
 ch_primitive ch_pop(ch_context *vm);
+
+void ch_push(ch_context *vm, ch_primitive primitive);

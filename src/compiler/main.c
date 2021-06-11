@@ -30,19 +30,7 @@ void print(ch_context *vm, ch_argcount argcount) {
   printf("Got number: %f", popped.number_value);
 }
 
-int main(void) {
-  char *program = load_program();
-
-  ch_program compiled_program;
-  if (!ch_compile(program, strlen(program), &compiled_program)) {
-    printf("Failed to compile program\n");
-    return 0;
-  }
-
-  ch_context vm = ch_newvm(compiled_program);
-  ch_addnative(&vm, print, "print");
-  ch_primitive return_value = ch_runfunction(&vm, "main");
-  ch_freevm(&vm);
+void printvalue(ch_primitive return_value) {
   switch(return_value.type) {
     case PRIMITIVE_BOOLEAN: {
       printf("BOOLEAN: %d", return_value.boolean_value);
@@ -76,6 +64,23 @@ int main(void) {
       break;
     }
   }
+
+}
+
+int main(void) {
+  char *program = load_program();
+
+  ch_program compiled_program;
+  if (!ch_compile(program, strlen(program), &compiled_program)) {
+    printf("Failed to compile program\n");
+    return 0;
+  }
+
+  ch_context vm = ch_newvm(compiled_program);
+  ch_addnative(&vm, print, "print");
+  ch_primitive return_value = ch_runfunction(&vm, "main");
+  ch_freevm(&vm);
+  printvalue(return_value);
 
   // ch_disassemble(&compiled_program);
 

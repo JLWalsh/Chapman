@@ -48,7 +48,6 @@ static ch_dataptr emit_string(ch_compilation *comp, const char *value,
 
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
-static void native_function(ch_compilation *comp);
 static ch_argcount function_arglist(ch_compilation *comp);
 
 /*
@@ -288,23 +287,6 @@ void statement(ch_compilation *comp) {
   }
 }
 
-void native_function(ch_compilation *comp) {
-  consume(comp, TK_NATIVE, "Expected declaration of native function.", NULL);
-  consume(comp, TK_POUND, "Expected start of function.", NULL);
-  ch_token name;
-  if (!consume(comp, TK_ID, "Expected function name.", &name))
-    return;
-
-  ch_argcount argcount = function_arglist(comp);
-
-  consume(comp, TK_SEMI, "Expected semicolon.", NULL);
-
-  EMIT_OP(GET_EMIT(comp), OP_NATIVE);
-  EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
-
-  add_variable(comp, name.lexeme);
-}
-
 void function(ch_compilation *comp) {
   consume(comp, TK_POUND, "Expected start of function.", NULL);
   ch_token name;
@@ -374,25 +356,23 @@ void expression_identifier(ch_compilation *comp) { identifier(comp, false); }
 void identifier(ch_compilation *comp, bool is_statement) {
   ch_token name = comp->previous;
 
-  if (is_statement) {
-    switch(comp->current.kind) {
-      case TK_POPEN: {
-        invocation(comp, name.lexeme);
-        break;
-      }
-      case TK_EQ: {
-        assignement(comp, name.lexeme);
-        break;
-      }
-      default: {
+  switch(comp->current.kind) {
+    case TK_POPEN: {
+      invocation(comp, name.lexeme);
+      break;
+    }
+    case TK_EQ: {
+      assignement(comp, name.lexeme);
+      break;
+    }
+    default: {
+      if (is_statement) {
         error(comp, "Expected assignement or invocation.");
+      } else {
+        load_variable(comp, name.lexeme);
       }
     }
-
-    return;
   }
-
-  load_variable(comp, name.lexeme);
 }
 
 void invocation(ch_compilation *comp, ch_lexeme name) {
@@ -690,6 +670,7 @@ void string(ch_compilation* comp) {
     if(string.lexeme.start[i] == '\\') i++;
     cleaned_string[output_i++] = string.lexeme.start[i]; 
   }
+
   EMIT_OP(GET_EMIT(comp), OP_STRING);
   ch_dataptr string_ptr = emit_string(comp, cleaned_string, output_i);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
