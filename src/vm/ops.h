@@ -23,6 +23,7 @@ typedef enum {
   OP_CALL,
   OP_RETURN_VOID,
   OP_RETURN_VALUE,
+  OP_JMP_FALSE, // Jump if false
 
   OP_FUNCTION,
   OP_NATIVE,

@@ -34,6 +34,10 @@ typedef enum {
 
   TK_NUM,
   TK_RETURN,
+  TK_IF,
+  TK_WHILE,
+  TK_FOR,
+  TK_DO,
 
   TK_EOF,
 

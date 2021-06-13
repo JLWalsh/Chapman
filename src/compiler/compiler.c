@@ -65,6 +65,11 @@ static void scope(ch_compilation *comp);
 static void function_statement(ch_compilation *comp);
 static void assignement(ch_compilation* comp, ch_lexeme name);
 
+static void if_statement(ch_compilation* comp);
+static void while_statement(ch_compilation* comp);
+static void do_while_statement(ch_compilation* comp);
+static void for_statement(ch_compilation* comp);
+
 static uint8_t begin_scope(ch_compilation *comp);
 static void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
 static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
@@ -194,6 +199,8 @@ void error(ch_compilation *comp, const char *error_message, ...) {
 // Error recovery used when the error occurs outside a function declaration
 void synchronize_outside_function(ch_compilation *comp) {
   comp->is_panic = false;
+
+  advance(comp);
 
   while (comp->current.kind != TK_EOF) {
     if (comp->previous.kind == TK_SEMI)
@@ -540,6 +547,22 @@ void function_statement(ch_compilation *comp) {
     statement_identifier(comp);
     break;
   }
+  case TK_IF: {
+    if_statement(comp);
+    break;
+  }
+  case TK_WHILE: {
+    while_statement(comp);
+    break;
+  }
+  case TK_DO: {
+    do_while_statement(comp);
+    break;
+  }
+  case TK_FOR: {
+    for_statement(comp);
+    break;
+  }
   default:
     error(comp, "Expected statement.");
   }
@@ -550,7 +573,7 @@ void function_statement(ch_compilation *comp) {
     synchronize_in_function(comp);
 }
 
-static void assignement(ch_compilation* comp, ch_lexeme name) {
+void assignement(ch_compilation* comp, ch_lexeme name) {
   if(!consume(comp, TK_EQ, "Expected assignement.", NULL)) {
     return;
   }
@@ -558,6 +581,31 @@ static void assignement(ch_compilation* comp, ch_lexeme name) {
   expression(comp);
 
   set_variable(comp, name);
+}
+
+void if_statement(ch_compilation* comp) {
+  consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
+  expression(comp);
+  consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
+
+  ch_dataptr patch_address = emit_jump(comp, OP_JMP_FALSE);
+  scope(comp);
+  patch_jump(comp, patch_address);
+
+  if (consume())
+
+}
+
+void while_statement(ch_compilation* comp) {
+
+}
+
+void do_while_statement(ch_compilation* comp) {
+
+}
+
+void for_statement(ch_compilation* comp) {
+
 }
 
 uint8_t begin_scope(ch_compilation *comp) { return comp->scope.locals_size; }
