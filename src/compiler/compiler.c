@@ -297,7 +297,7 @@ ch_dataptr emit_jump(ch_compilation *comp, ch_op jump_instruction) {
 
 void patch_jump(ch_compilation *comp, ch_dataptr patch_address) {
   // + 1 is to skip the ch_op instruction emitted in emit_jump
-  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(&GET_EMIT(comp)->emit_scope->bytecode) - patch_address;
+  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(&GET_EMIT(comp)->emit_scope->bytecode) - patch_address - sizeof(ch_jmpptr);
 
   ch_emit_patch_ptr(GET_EMIT(comp), offset, patch_address);
 }
