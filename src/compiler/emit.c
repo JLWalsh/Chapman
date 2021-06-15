@@ -5,7 +5,6 @@
 #include <string.h>
 
 #define INITIAL_BLOB_SIZE 10000
-#define BLOB_CONTENT_SIZE(blob_ptr) ((blob_ptr)->current - (blob_ptr)->start)
 
 ch_blob create_blob();
 void free_blob(ch_blob *blob);
@@ -36,7 +35,7 @@ ch_dataptr ch_emit_commit_scope(ch_emit *emit) {
 
   ch_blob *bytecode = &emit->emit_scope->bytecode;
   ch_dataptr function_ptr = ch_emit_write(
-      &emit->function_bytecode, bytecode->start, BLOB_CONTENT_SIZE(bytecode));
+      &emit->function_bytecode, bytecode->start, CH_BLOB_CONTENT_SIZE(bytecode));
 
   free_blob(bytecode);
   emit->emit_scope = emit->emit_scope->parent;
@@ -66,7 +65,7 @@ ch_program ch_emit_assemble(ch_emit *emit, ch_dataptr program_start_ptr) {
 
 ch_dataptr ch_emit_write(ch_blob *blob, const void *data_start,
                          size_t write_size) {
-  uint32_t new_size = BLOB_CONTENT_SIZE(blob) + write_size;
+  uint32_t new_size = CH_BLOB_CONTENT_SIZE(blob) + write_size;
   // TODO reintroduce exceeded capacity check
   // if (new_size >= CH_DATAPTR_MAX) {
   // return CH_DATAPTR_NULL;
@@ -78,7 +77,7 @@ ch_dataptr ch_emit_write(ch_blob *blob, const void *data_start,
     // TODO check how realloc changes blob->start pointer
     blob->start =
         realloc((void *)blob->start, MIN(CH_DATAPTR_MAX, max_new_size));
-    blob->current = blob->start + BLOB_CONTENT_SIZE(blob);
+    blob->current = blob->start + CH_BLOB_CONTENT_SIZE(blob);
   }
 
   ch_dataptr write_ptr = blob->current - blob->start;
@@ -86,6 +85,19 @@ ch_dataptr ch_emit_write(ch_blob *blob, const void *data_start,
   blob->current += write_size;
 
   return write_ptr;
+}
+
+void ch_emit_patch_ptr(ch_emit* emit, ch_dataptr ptr, ch_jmpptr patch_at) {
+  ch_blob* bytecode = &emit->emit_scope->bytecode;
+
+  if (patch_at + sizeof(ptr) >= CH_BLOB_CONTENT_SIZE(bytecode)) return;
+
+  // uint* address = &bytecode->start[patch_at];
+  uint8_t ptr_le[4];
+  uint32_t raw_ptr = JMPPTR_TO_U32(patch_at);
+  ch_uint32_to_le_array(raw_ptr, ptr_le);
+  
+  memcpy(&bytecode->start[patch_at], &ptr_le[0], sizeof(ptr_le));
 }
 
 inline void ch_uint32_to_le_array(uint32_t value, uint8_t *out_array) {

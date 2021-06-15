@@ -16,7 +16,12 @@ typedef struct {
 const ch_keyword keywords[] = {{"val", TK_VAL},
                                {"var", TK_VAR},
                                {"return", TK_RETURN},
-                               {"native", TK_NATIVE}};
+                               {"native", TK_NATIVE},
+                               {"if", TK_IF},
+                               {"for", TK_FOR},
+                               {"while", TK_WHILE},
+                               {"do", TK_DO},
+                               {"else", TK_ELSE}};
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)

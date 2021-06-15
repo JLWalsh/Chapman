@@ -6,11 +6,11 @@ val z = "hello, " + "world!";
         return x + 2;
     };
 
-    if (y == 32) {
+    if (y + 32) {
         y = 64;
     } else {
         y = 128;
-    }
+    };
 
     return y;
 }

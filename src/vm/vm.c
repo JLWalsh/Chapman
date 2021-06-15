@@ -1,6 +1,8 @@
 #include "vm.h"
 #include "bytecode.h"
 #include "ops.h"
+#include "defs.h"
+#include "type_check.h"
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -10,6 +12,10 @@
 #define VM_READ_PTR(context)                                                   \
   ((context)->pcurrent += sizeof(ch_dataptr),                                  \
    READ_U32((context)->pcurrent - sizeof(ch_dataptr)))
+
+#define VM_READ_JMPPTR(context)                                                   \
+  ((context)->pcurrent += sizeof(ch_jmpptr),                                  \
+   U32_TO_JMPPTR(READ_U32((context)->pcurrent - sizeof(ch_jmpptr))))
 
 #define VM_READ_HASH(context)                                                  \
   ((context)->pcurrent += sizeof(uint32_t),                                    \
@@ -27,6 +33,17 @@
 
 static void halt(ch_context *context, ch_exit reason) {
   context->exit = reason;
+}
+
+static void jump(ch_context *context, ch_jmpptr offset) {
+  uint8_t *jump_ptr = context->pcurrent + offset;
+  if (!IS_PROGRAM_PTR_SAFE(context, jump_ptr)) {
+    ch_runtime_error(context, EXIT_INVALID_INSTRUCTION_POINTER,
+                     "Jump pointer exceeds bounds of program.");
+    return;
+  }
+
+  context->pcurrent = jump_ptr;
 }
 
 static void call(ch_context *context, ch_function *function,
@@ -355,6 +372,27 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
     }
     case OP_RETURN_VOID: {
       call_return(context);
+      break;
+    }
+    case OP_JMP: {
+      ch_jmpptr ptr = VM_READ_JMPPTR(context);
+      jump(context, ptr);
+      break;
+    }
+    case OP_JMP_FALSE: {
+      ch_jmpptr ptr = VM_READ_JMPPTR(context);
+
+        jump(context, ptr);
+        break;
+      ch_primitive popped;
+      STACK_POP(context, &popped);
+
+      bool value;
+      if(!ch_checkboolean(context, popped, &value)) break;
+
+      if (!value) {
+        jump(context, ptr);
+      }
       break;
     }
     default: {

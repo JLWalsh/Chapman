@@ -37,6 +37,8 @@ typedef struct {
 static void advance(ch_compilation *comp);
 static bool consume(ch_compilation *comp, ch_token_kind kind,
                     const char *error_message, ch_token *out_token);
+// Optional consume, does not report error if did not consume
+static bool opt_consume(ch_compilation *comp, ch_token_kind kind, ch_token *out_token);
 
 static void error(ch_compilation *comp, const char *error_message, ...);
 static void synchronize_outside_function(ch_compilation *comp);
@@ -45,6 +47,8 @@ static void synchronize_in_function(ch_compilation *comp);
 static void free_compiler(ch_compilation *comp);
 static ch_dataptr emit_string(ch_compilation *comp, const char *value,
                               size_t size);
+static ch_dataptr emit_jump(ch_compilation *comp, ch_op jump_instruction);
+static void patch_jump(ch_compilation *comp, ch_dataptr patch_address);
 
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
@@ -166,6 +170,15 @@ void advance(ch_compilation *comp) {
 
 bool consume(ch_compilation *comp, ch_token_kind kind,
              const char *error_message, ch_token *out_token) {
+    bool result = opt_consume(comp, kind, out_token);
+    if (!result) {
+      error(comp, error_message);
+    }
+
+    return result;
+}
+
+bool opt_consume(ch_compilation *comp, ch_token_kind kind, ch_token *out_token) {
   if (comp->is_panic)
     return false;
 
@@ -179,7 +192,6 @@ bool consume(ch_compilation *comp, ch_token_kind kind,
     return true;
   }
 
-  error(comp, error_message);
   return false;
 }
 
@@ -272,6 +284,22 @@ ch_dataptr emit_string(ch_compilation *comp, const char *value, size_t size) {
   ch_table_set(&comp->strings, key, MAKE_NUMBER(string_ptr));
 
   return string_ptr;
+}
+
+ch_dataptr emit_jump(ch_compilation *comp, ch_op jump_instruction) {
+  EMIT_OP(GET_EMIT(comp), jump_instruction);
+  ch_dataptr patch_address;
+  EMIT_PTR_OUT(GET_EMIT(comp), 0, patch_address);
+
+  // Skip over the emitted ch_op
+  return patch_address;
+}
+
+void patch_jump(ch_compilation *comp, ch_dataptr patch_address) {
+  // + 1 is to skip the ch_op instruction emitted in emit_jump
+  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(&GET_EMIT(comp)->emit_scope->bytecode) - patch_address;
+
+  ch_emit_patch_ptr(GET_EMIT(comp), offset, patch_address);
 }
 
 void statement(ch_compilation *comp) {
@@ -584,16 +612,23 @@ void assignement(ch_compilation* comp, ch_lexeme name) {
 }
 
 void if_statement(ch_compilation* comp) {
+  consume(comp, TK_IF, "Expected if statement", NULL);
   consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
   expression(comp);
   consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
 
-  ch_dataptr patch_address = emit_jump(comp, OP_JMP_FALSE);
+  ch_dataptr false_branch_patch = emit_jump(comp, OP_JMP_FALSE);
   scope(comp);
-  patch_jump(comp, patch_address);
 
-  if (consume())
-
+  if (!opt_consume(comp, TK_ELSE, NULL)) {
+    patch_jump(comp, false_branch_patch);
+  }
+ 
+  // If we have an else section, we emit a jump so that the "true" branch can skip over the "false" branch
+  ch_dataptr true_branch_patch = emit_jump(comp, OP_JMP);
+  patch_jump(comp, false_branch_patch);
+  scope(comp);
+  patch_jump(comp, true_branch_patch);
 }
 
 void while_statement(ch_compilation* comp) {
