@@ -40,6 +40,9 @@ typedef enum {
   TK_FOR,
   TK_DO,
 
+  TK_AND,
+  TK_OR,
+
   TK_EOF,
 
   // Do not declare any tokens after this

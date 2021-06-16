@@ -93,6 +93,22 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
     case '\r':
       start = state->current;
       continue;
+    case '&': 
+      if (*state->current == '&') {
+        state->current++;
+        *next = get_token(start, state, TK_AND);
+        return true;
+      }
+      // TODO bitwise
+      return false;
+    case '|': 
+      if (*state->current == '|') {
+        state->current++;
+        *next = get_token(start, state, TK_OR);
+        return true;
+      }
+      // TODO bitwise
+      return false;
     case '/':
       if (*state->current == '/') {
         while (*state->current != '\n') {

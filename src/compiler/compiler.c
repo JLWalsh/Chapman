@@ -15,8 +15,8 @@
 typedef enum {
   PREC_NONE,
   PREC_ASSIGNMENT, // =
-  PREC_OR,         // or
-  PREC_AND,        // and
+  PREC_OR,         // ||
+  PREC_AND,        // && 
   PREC_EQUALITY,   // == !=
   PREC_COMPARISON, // < > <= >=
   PREC_TERM,       // + -
@@ -96,6 +96,8 @@ static void invocation(ch_compilation *comp, ch_lexeme name);
 static ch_argcount invocation_arguments(ch_compilation* comp);
 static void number(ch_compilation *comp);
 static void string(ch_compilation* comp);
+static void and(ch_compilation* comp);
+static void or(ch_compilation* comp);
 
 ch_parse_rule rules[NUM_TOKENS] = {
     [TK_POPEN] = {PREC_NONE, grouping, NULL},
@@ -106,6 +108,8 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_NUM] = {PREC_NONE, number, NULL},
     [TK_STRING] = {PREC_NONE, string, NULL},
     [TK_ID] = {PREC_NONE, expression_identifier, NULL},
+    [TK_AND] = {PREC_AND, NULL, and},
+    [TK_OR] = {PREC_OR, NULL, or},
 };
 
 const ch_parse_rule *get_rule(ch_token_kind kind);
@@ -757,4 +761,20 @@ void string(ch_compilation* comp) {
   EMIT_OP(GET_EMIT(comp), OP_STRING);
   ch_dataptr string_ptr = emit_string(comp, cleaned_string, output_i);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
+}
+
+void and(ch_compilation* comp) {
+  ch_dataptr patch = emit_jump(comp, OP_JMP_FALSE); // If false, no need to evaluate the next expression
+  EMIT_OP(GET_EMIT(comp), OP_POP);
+  parse(comp, PREC_AND);
+  patch_jump(comp, patch);
+}
+
+void or(ch_compilation* comp) {
+  ch_dataptr patch_false = emit_jump(comp, OP_JMP_FALSE);  
+  ch_dataptr patch_true = emit_jump(comp, OP_JMP); // If true, no need to evaluate the next expression
+  patch_jump(comp, patch_false);
+  EMIT_OP(GET_EMIT(comp), OP_POP);
+  parse(comp, PREC_OR);
+  patch_jump(comp, patch_true);
 }
