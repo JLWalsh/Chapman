@@ -9,6 +9,7 @@ set(VM_SOURCE_FILES
     vm.c
     natives.c
     type_check.c
+    primitive.c
 )
 
 # List of headers to be exported alongside the library

@@ -1,10 +1,11 @@
 val z = "hello, " + "world!";
 
 #main() {
-    if(32) {
-        print("world!");
+    if(0 && 1 && 3) {
+        print("true");
         return;
     };
 
-    return y;
+    print("false");
+    return "bye";
 }

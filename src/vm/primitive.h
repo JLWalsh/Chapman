@@ -35,3 +35,5 @@ typedef struct {
     ch_object *object_value;
   };
 } ch_primitive;
+
+bool ch_primitive_isfalsy(const ch_primitive value);

@@ -76,3 +76,16 @@ void ch_initstring(ch_string *string, const char *value, size_t size) {
   string->hash = ch_hash_string(value, size);
   string->object.type = TYPE_STRING;
 }
+
+bool ch_object_isfalsy(ch_object* object) {
+  switch(object->type) {
+    case TYPE_NATIVE:
+    case TYPE_FUNCTION:
+      return false;
+    case TYPE_STRING:
+      return AS_STRING(object)->size == 0;
+    default:
+      return false;
+  }
+
+}

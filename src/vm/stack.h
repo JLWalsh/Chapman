@@ -27,3 +27,5 @@ bool ch_stack_seekto(ch_stack *stack, ch_stack_addr addr);
 bool ch_stack_copy(ch_stack *stack, ch_stack_addr addr);
 
 void ch_stack_set(ch_stack *stack, ch_stack_addr addr, ch_primitive entry);
+
+ch_primitive ch_stack_peek(ch_stack *stack, ch_stack_addr addr_from_top);

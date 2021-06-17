@@ -25,11 +25,6 @@ char *load_program() {
   return program;
 }
 
-void print(ch_context *vm, ch_argcount argcount) {
-  ch_primitive popped = ch_pop(vm);
-  printf("Got number: %f", popped.number_value);
-}
-
 void printvalue(ch_primitive return_value) {
   switch(return_value.type) {
     case PRIMITIVE_BOOLEAN: {
@@ -65,6 +60,14 @@ void printvalue(ch_primitive return_value) {
     }
   }
 
+  printf("\n");
+}
+
+void print(ch_context *vm, ch_argcount argcount) {
+  for(ch_argcount i = 0; i < argcount; i++) {
+    ch_primitive popped = ch_pop(vm);
+    printvalue(popped);
+  }
 }
 
 int main(void) {
@@ -76,13 +79,13 @@ int main(void) {
     return 0;
   }
 
-  // ch_context vm = ch_newvm(compiled_program);
-  // ch_addnative(&vm, print, "print");
-  // ch_primitive return_value = ch_runfunction(&vm, "main");
-  // ch_freevm(&vm);
-  // printvalue(return_value);
+  ch_context vm = ch_newvm(compiled_program);
+  ch_addnative(&vm, print, "print");
+  ch_primitive return_value = ch_runfunction(&vm, "main");
+  ch_freevm(&vm);
+  printvalue(return_value);
 
-  ch_disassemble(&compiled_program);
+  // ch_disassemble(&compiled_program);
 
   return 0;
 }

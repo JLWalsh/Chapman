@@ -382,15 +382,9 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
     case OP_JMP_FALSE: {
       ch_jmpptr ptr = VM_READ_JMPPTR(context);
 
-        jump(context, ptr);
-        break;
-      ch_primitive popped;
-      STACK_POP(context, &popped);
+      ch_primitive peek = ch_stack_peek(&context->stack, 0);
 
-      bool value;
-      if(!ch_checkboolean(context, popped, &value)) break;
-
-      if (!value) {
+      if (ch_primitive_isfalsy(peek)) {
         jump(context, ptr);
       }
       break;

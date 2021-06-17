@@ -305,7 +305,7 @@ ch_jmpptr emit_jump(ch_compilation *comp, ch_op jump_instruction) {
 
 void patch_jump(ch_compilation *comp, ch_jmpptr patch_address) {
   ch_blob* bytecode = &GET_EMIT(comp)->emit_scope->bytecode;
-  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(bytecode) - patch_address;
+  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(bytecode) - patch_address - sizeof(ch_jmpptr);
 
   ch_emit_patch_ptr(GET_EMIT(comp), offset, patch_address);
 }
