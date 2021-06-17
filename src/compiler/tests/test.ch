@@ -1,7 +1,10 @@
 val z = "hello, " + "world!";
 
 #main() {
-    val z = y && 32;
+    if(32) {
+        print("world!");
+        return;
+    };
 
     return y;
 }

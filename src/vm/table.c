@@ -111,9 +111,16 @@ ch_string *ch_table_find_string(ch_table *table, const char *value,
 
       if (IS_NULL(entry->value))
         return NULL;
-    } else if (entry->key->size == size && entry->key->hash == hash &&
-               memcmp(entry->key->value, value, size) == 0) {
-      return entry->key;
+    } else  {
+    // } else if (entry->key->size == size && entry->key->hash == hash &&
+    //            memcmp(entry->key->value, value, size) == 0) {
+      bool a = entry->key->size == size;
+      bool b = entry->key->hash == hash;
+      bool result = memcmp(entry->key->value, value, size) == 0;
+      if (a && b && result) {
+        return entry->key;
+      }
+
     }
 
     index = (index + 1) & (table->capacity - 1);

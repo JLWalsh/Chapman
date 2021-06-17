@@ -47,8 +47,8 @@ static void synchronize_in_function(ch_compilation *comp);
 static void free_compiler(ch_compilation *comp);
 static ch_dataptr emit_string(ch_compilation *comp, const char *value,
                               size_t size);
-static ch_dataptr emit_jump(ch_compilation *comp, ch_op jump_instruction);
-static void patch_jump(ch_compilation *comp, ch_dataptr patch_address);
+static ch_jmpptr emit_jump(ch_compilation *comp, ch_op jump_instruction);
+static void patch_jump(ch_compilation *comp, ch_jmpptr patch_address);
 
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
@@ -261,6 +261,7 @@ void free_compiler(ch_compilation *comp) {
     ch_table_entry entry = comp->strings.entries[i];
     if (entry.key != NULL) {
       // Strings allocated in emit_string
+      free((char*) entry.key->value);
       free(entry.key);
     }
   }
@@ -284,24 +285,27 @@ ch_dataptr emit_string(ch_compilation *comp, const char *value, size_t size) {
   ch_dataptr string_ptr;
   EMIT_DATA_STRING(GET_EMIT(comp), value, size, string_ptr);
 
-  ch_string *key = new_string(value, size);
+  char* copied_value = (char*) malloc(size + 1);
+  memcpy(copied_value, value, size);
+  copied_value[size] = '\0';
+
+  ch_string *key = new_string(copied_value, size);
   ch_table_set(&comp->strings, key, MAKE_NUMBER(string_ptr));
 
   return string_ptr;
 }
 
-ch_dataptr emit_jump(ch_compilation *comp, ch_op jump_instruction) {
+ch_jmpptr emit_jump(ch_compilation *comp, ch_op jump_instruction) {
   EMIT_OP(GET_EMIT(comp), jump_instruction);
-  ch_dataptr patch_address;
-  EMIT_PTR_OUT(GET_EMIT(comp), 0, patch_address);
+  EMIT_PTR(GET_EMIT(comp), 0)
 
-  // Skip over the emitted ch_op
-  return patch_address;
+  ch_blob* bytecode = &GET_EMIT(comp)->emit_scope->bytecode;
+  return CH_BLOB_CONTENT_SIZE(bytecode) - sizeof(ch_jmpptr);
 }
 
-void patch_jump(ch_compilation *comp, ch_dataptr patch_address) {
-  // + 1 is to skip the ch_op instruction emitted in emit_jump
-  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(&GET_EMIT(comp)->emit_scope->bytecode) - patch_address - sizeof(ch_jmpptr);
+void patch_jump(ch_compilation *comp, ch_jmpptr patch_address) {
+  ch_blob* bytecode = &GET_EMIT(comp)->emit_scope->bytecode;
+  ch_jmpptr offset = CH_BLOB_CONTENT_SIZE(bytecode) - patch_address;
 
   ch_emit_patch_ptr(GET_EMIT(comp), offset, patch_address);
 }
@@ -626,6 +630,7 @@ void if_statement(ch_compilation* comp) {
 
   if (!opt_consume(comp, TK_ELSE, NULL)) {
     patch_jump(comp, false_branch_patch);
+    return;
   }
  
   // If we have an else section, we emit a jump so that the "true" branch can skip over the "false" branch
@@ -759,6 +764,7 @@ void string(ch_compilation* comp) {
   }
 
   EMIT_OP(GET_EMIT(comp), OP_STRING);
+  // TODO make emit_string copy cleaned_string, because the buffer becomes out of scope once the function returns
   ch_dataptr string_ptr = emit_string(comp, cleaned_string, output_i);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 }

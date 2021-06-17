@@ -88,7 +88,7 @@ static size_t print_argcount(const ch_program *program, uint8_t *i) {
 static size_t print_jump_ptr(const ch_program *program, uint8_t* i) {
   ch_jmpptr ptr = READ_JMPPTR(i);
   ch_jmpptr resolved_ptr = (i - program->start) + ptr;
-  printf("ptr %" PRIu32 " <resolved: %" PRIu32 ">", ptr, resolved_ptr);
+  printf("offset %" PRIu32 " <resolved: %" PRIu32 ">", ptr, resolved_ptr);
 
   return sizeof(ptr);
 }

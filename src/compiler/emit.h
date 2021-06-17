@@ -20,14 +20,6 @@
 #define EMIT_BYTECODE(emit_ptr, value_ptr, size)                               \
   ch_emit_write(GET_BYTECODE(emit_ptr), value_ptr, size)
 
-
-#define EMIT_PTR_OUT(emit_ptr, value, out_ptr)\
-  {                                                                            \
-    uint8_t le_value[4];                                                       \
-    ch_uint32_to_le_array(value, le_value);                                    \
-    out_ptr = EMIT_BYTECODE(emit_ptr, &(le_value), sizeof(le_value));                    \
-  }
-
 #define EMIT_PTR(emit_ptr, value)                                              \
   {                                                                            \
     uint8_t le_value[4];                                                       \
