@@ -39,6 +39,10 @@ void printvalue(ch_primitive return_value) {
       printf("NULL");
       break;
     }
+    case PRIMITIVE_CHAR: {
+      printf("CHAR: %c", return_value.char_value);
+      break;
+    }
     case PRIMITIVE_OBJECT: {
       printf("OBJECT: ");
       ch_object* obj = AS_OBJECT(return_value);
@@ -74,7 +78,7 @@ int main(void) {
   char *program = load_program();
 
   ch_program compiled_program;
-  if (!ch_compile(program, strlen(program), &compiled_program)) {
+  if (!ch_compile((uint8_t*)program, strlen(program), &compiled_program)) {
     printf("Failed to compile program\n");
     return 0;
   }

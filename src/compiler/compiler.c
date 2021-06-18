@@ -69,6 +69,8 @@ static void scope(ch_compilation *comp);
 static void function_statement(ch_compilation *comp);
 static void assignement(ch_compilation* comp, ch_lexeme name);
 
+static void semicolon(ch_compilation* comp);
+
 static void if_statement(ch_compilation* comp);
 static void while_statement(ch_compilation* comp);
 static void do_while_statement(ch_compilation* comp);
@@ -323,7 +325,7 @@ void statement(ch_compilation *comp) {
   switch (comp->current.kind) {
   case TK_VAL: {
     declaration(comp);
-    consume(comp, TK_SEMI, "Expected semicolon.", NULL);
+    semicolon(comp);
     break;
   }
   case TK_POUND: {
@@ -570,6 +572,7 @@ void function_statement(ch_compilation *comp) {
   switch (comp->current.kind) {
   case TK_VAL: {
     declaration(comp);
+    semicolon(comp);
     break;
   }
   case TK_COPEN: {
@@ -580,6 +583,7 @@ void function_statement(ch_compilation *comp) {
   }
   case TK_RETURN: {
     return_statement(comp);
+    semicolon(comp);
     break;
   }
   case TK_POUND: {
@@ -588,6 +592,7 @@ void function_statement(ch_compilation *comp) {
   }
   case TK_ID: {
     statement_identifier(comp);
+    semicolon(comp);
     break;
   }
   case TK_IF: {
@@ -610,8 +615,6 @@ void function_statement(ch_compilation *comp) {
     error(comp, "Expected statement.");
   }
 
-  consume(comp, TK_SEMI, "Expected semicolon.", NULL);
-
   if (comp->is_panic)
     synchronize_in_function(comp);
 }
@@ -624,6 +627,10 @@ void assignement(ch_compilation* comp, ch_lexeme name) {
   expression(comp);
 
   set_variable(comp, name);
+}
+
+void semicolon(ch_compilation* comp) {
+  consume(comp, TK_SEMI, "Expected semicolon.", NULL);
 }
 
 void if_statement(ch_compilation* comp) {

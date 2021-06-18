@@ -75,7 +75,8 @@ static size_t print_function_ptr(const ch_program *program, uint8_t *i) {
 static size_t print_string_ptr(const ch_program *program, uint8_t *i) {
   ch_dataptr ptr = READ_U32(i);
   ch_bytecode_string string = ch_bytecode_load_string(program, ptr);
-  printf("(ptr %" PRIu32 " <%.*s>) ", ptr, string.size, string.value);
+  // If string size is greater than INT_MAX, then it's too long to display all of it anyways
+  printf("(ptr %" PRIu32 " <%.*s>) ", ptr, (int) string.size, string.value);
 
   return sizeof(ptr);
 }

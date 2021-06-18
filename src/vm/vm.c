@@ -215,6 +215,8 @@ static ch_primitive binary_op_number(ch_context* context, ch_primitive args[2], 
       result = AS_NUMBER(args[0]) / AS_NUMBER(args[1]);
       break;
     }
+    default:
+      ch_runtime_error(context, EXIT_UNKNOWN_INSTRUCTION, "Unsupported instruction for binary op.");
   }
 
   return MAKE_NUMBER(result);
