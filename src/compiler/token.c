@@ -23,14 +23,16 @@ const ch_keyword keywords[] = {{"val", TK_VAL},
                                {"do", TK_DO},
                                {"else", TK_ELSE},
                                {"false", TK_FALSE},
-                               {"true", TK_TRUE}};
+                               {"true", TK_TRUE},
+                               {"null", TK_NULL}};
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)
 const bool tokens_with_lexemes[NUM_TOKENS] = {
   [TK_ID] = true, 
   [TK_NUM] = true,
-  [TK_STRING] = true
+  [TK_STRING] = true,
+  [TK_CHAR] = true
 };
 
 const uint8_t num_keywords = sizeof(keywords) / sizeof(keywords[0]);
@@ -111,6 +113,22 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       }
       // TODO bitwise
       return false;
+    case '\'':
+      // Empty char
+      if (*state->current == '\'') {
+        state->current++;
+        *next = get_token(start, state, TK_CHAR);
+        return true;
+      }
+
+      // Non-empty char
+      if (state->current[1] == '\'') {
+        state->current += 2;
+        *next = get_token(start, state, TK_CHAR);
+        return true;
+      }
+
+      return false;
     case '/':
       if (*state->current == '/') {
         while (*state->current != '\n') {
@@ -162,7 +180,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
         if (lexeme_size >= MAX_ID_LENGTH) {
           ch_tk_error("Identifier size exceeds limit", state);
           return false;
-        }
+}
 
         ch_token_kind token_kind = parse_token_kind(start, lexeme_size);
         *next = get_token(start, state, token_kind);
@@ -177,7 +195,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
         }
 
         if (*state->current == '.') {
-          *state->current++;
+          state->current++;
           char *digitStart = state->current;
 
           while (isdigit(*state->current)) {

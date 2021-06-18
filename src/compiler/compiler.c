@@ -97,6 +97,8 @@ static ch_argcount invocation_arguments(ch_compilation* comp);
 static void number(ch_compilation *comp);
 static void string(ch_compilation* comp);
 static void boolean(ch_compilation* comp);
+static void expression_char(ch_compilation* comp);
+static void expression_null(ch_compilation* comp);
 static void and(ch_compilation* comp);
 static void or(ch_compilation* comp);
 
@@ -113,6 +115,8 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_OR] = {PREC_OR, NULL, or},
     [TK_FALSE] = {PREC_NONE, boolean, NULL},
     [TK_TRUE] = {PREC_NONE, boolean, NULL},
+    [TK_CHAR] = {PREC_NONE, expression_char, NULL},
+    [TK_NULL] = {PREC_NONE, expression_null, NULL},
 };
 
 const ch_parse_rule *get_rule(ch_token_kind kind);
@@ -785,6 +789,24 @@ void boolean(ch_compilation* comp) {
     default:
       error(comp, "Expected boolean expression");
   }
+}
+
+void expression_char(ch_compilation* comp) {
+  ch_lexeme value = comp->previous.lexeme;
+  
+  EMIT_OP(GET_EMIT(comp), OP_CHAR);
+  // 2 characters means the char expression is ''
+  // In that case, we emit a null byte
+  if (value.size == 2) {
+      EMIT_OP(GET_EMIT(comp), 0);
+      return;
+  }
+
+  EMIT_OP(GET_EMIT(comp), value.start[1]);
+}
+
+void expression_null(ch_compilation* comp) {
+  EMIT_OP(GET_EMIT(comp), OP_NULL);
 }
 
 void and(ch_compilation* comp) {

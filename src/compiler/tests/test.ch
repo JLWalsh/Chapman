@@ -1,5 +1,5 @@
 #main() {
-    if(false && true) {
+    if(null || false) {
         print("true");
         return;
     };

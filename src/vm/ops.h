@@ -15,6 +15,8 @@ typedef enum {
   OP_STRING,
   OP_FALSE,
   OP_TRUE,
+  OP_CHAR,
+  OP_NULL,
 
   OP_LOAD_LOCAL,
   OP_SET_LOCAL,

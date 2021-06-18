@@ -13,6 +13,10 @@
   ((context)->pcurrent += sizeof(ch_dataptr),                                  \
    READ_U32((context)->pcurrent - sizeof(ch_dataptr)))
 
+#define VM_READ_CHAR(context)                                                   \
+  ((context)->pcurrent += sizeof(char),                                  \
+    *((char*)(context)->pcurrent - sizeof(char)))
+
 #define VM_READ_JMPPTR(context)                                                   \
   ((context)->pcurrent += sizeof(ch_jmpptr),                                  \
    U32_TO_JMPPTR(READ_U32((context)->pcurrent - sizeof(ch_jmpptr))))
@@ -250,6 +254,15 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
     }
     case OP_TRUE: { 
       STACK_PUSH(context, MAKE_BOOLEAN(true));
+      break;
+    }
+    case OP_CHAR: {
+      char value = VM_READ_CHAR(context);
+      STACK_PUSH(context, MAKE_CHAR(value));
+      break;
+    }
+    case OP_NULL: {
+      STACK_PUSH(context, MAKE_NULL());
       break;
     }
     case OP_ADD: 

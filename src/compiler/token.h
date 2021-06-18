@@ -31,6 +31,8 @@ typedef enum {
 
   TK_ID,
   TK_STRING,
+  TK_CHAR,
+  TK_NULL,
 
   TK_NUM,
   TK_RETURN,
