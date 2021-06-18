@@ -42,6 +42,8 @@ typedef enum {
 
   TK_AND,
   TK_OR,
+  TK_FALSE,
+  TK_TRUE,
 
   TK_EOF,
 

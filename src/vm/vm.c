@@ -244,6 +244,14 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       STACK_PUSH(context, MAKE_OBJECT(string));
       break;
     }
+    case OP_FALSE: { 
+      STACK_PUSH(context, MAKE_BOOLEAN(false));
+      break;
+    }
+    case OP_TRUE: { 
+      STACK_PUSH(context, MAKE_BOOLEAN(true));
+      break;
+    }
     case OP_ADD: 
     case OP_SUB:
     case OP_MUL:
@@ -406,7 +414,7 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
   return context->program_return_value;
 }
 
-bool ch_addnative(ch_context *context, ch_native_function function,
+void ch_addnative(ch_context *context, ch_native_function function,
                   const char *name) {
   ch_string *s = ch_loadstring(context, name, strlen(name), true);
   ch_native *native = ch_loadnative(function);

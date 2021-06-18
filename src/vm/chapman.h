@@ -75,7 +75,7 @@ void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
                       ...);
 
 // name_size should include null byte for strlen()
-bool ch_addnative(ch_context *context, ch_native_function function,
+void ch_addnative(ch_context *context, ch_native_function function,
                   const char *name);
 
 ch_primitive ch_pop(ch_context *vm);

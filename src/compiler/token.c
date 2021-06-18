@@ -21,7 +21,9 @@ const ch_keyword keywords[] = {{"val", TK_VAL},
                                {"for", TK_FOR},
                                {"while", TK_WHILE},
                                {"do", TK_DO},
-                               {"else", TK_ELSE}};
+                               {"else", TK_ELSE},
+                               {"false", TK_FALSE},
+                               {"true", TK_TRUE}};
 
 // Unspecified tokens are set to false by default
 // (Since uninitialized values are always set to 0)

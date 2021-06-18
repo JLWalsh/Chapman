@@ -96,6 +96,7 @@ static void invocation(ch_compilation *comp, ch_lexeme name);
 static ch_argcount invocation_arguments(ch_compilation* comp);
 static void number(ch_compilation *comp);
 static void string(ch_compilation* comp);
+static void boolean(ch_compilation* comp);
 static void and(ch_compilation* comp);
 static void or(ch_compilation* comp);
 
@@ -110,6 +111,8 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_ID] = {PREC_NONE, expression_identifier, NULL},
     [TK_AND] = {PREC_AND, NULL, and},
     [TK_OR] = {PREC_OR, NULL, or},
+    [TK_FALSE] = {PREC_NONE, boolean, NULL},
+    [TK_TRUE] = {PREC_NONE, boolean, NULL},
 };
 
 const ch_parse_rule *get_rule(ch_token_kind kind);
@@ -767,6 +770,21 @@ void string(ch_compilation* comp) {
   // TODO make emit_string copy cleaned_string, because the buffer becomes out of scope once the function returns
   ch_dataptr string_ptr = emit_string(comp, cleaned_string, output_i);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
+}
+
+void boolean(ch_compilation* comp) {
+  ch_token_kind kind = comp->previous.kind;
+
+  switch(kind) {
+    case TK_TRUE: 
+      EMIT_OP(GET_EMIT(comp), OP_TRUE);
+      return;
+    case TK_FALSE: 
+      EMIT_OP(GET_EMIT(comp), OP_FALSE);
+      return;
+    default:
+      error(comp, "Expected boolean expression");
+  }
 }
 
 void and(ch_compilation* comp) {

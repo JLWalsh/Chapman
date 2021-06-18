@@ -13,6 +13,8 @@ typedef enum {
   OP_DIV,
 
   OP_STRING,
+  OP_FALSE,
+  OP_TRUE,
 
   OP_LOAD_LOCAL,
   OP_SET_LOCAL,

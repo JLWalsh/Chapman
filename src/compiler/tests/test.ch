@@ -1,11 +1,8 @@
-val z = "hello, " + "world!";
-
 #main() {
-    if(0 && 1 && 3) {
+    if(false && true) {
         print("true");
         return;
     };
 
     print("false");
-    return "bye";
 }
