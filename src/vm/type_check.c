@@ -10,17 +10,28 @@ bool ch_checkargcount(ch_context* vm, ch_argcount expected, ch_argcount actual) 
 	return is_same;
 }
 
-ch_string* ch_checkstring(ch_context* vm, ch_primitive value) {
+bool ch_checkstring(ch_context* vm, ch_primitive value, ch_string** actual) {
 	if (!IS_OBJECT(value)) {
 		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected string type, but got type %d instead", value.type);
-		return NULL;
+		return false;
 	}
 
 	ch_object* object_value = AS_OBJECT(value);
 	if (!IS_STRING(object_value)) {
 		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected string type, but got object type %d instead", object_value->type);
-		return NULL;
+		return false;
 	}
 
-	return AS_STRING(object_value);
+	*actual = AS_STRING(object_value);
+
+	return true;
+}
+
+bool ch_checknumber(ch_context* vm, ch_primitive value, double* actual) {
+	if (!IS_NUMBER(value)) {
+		return false;
+	}
+
+	*actual = AS_NUMBER(value);
+	return true;
 }

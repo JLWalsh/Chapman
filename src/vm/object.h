@@ -64,6 +64,11 @@ ch_string *ch_loadstring(ch_context *vm, const char *value, size_t size,
 
 ch_string *ch_concatstring(ch_context *vm, ch_string* left, ch_string* right);
 
+// end is inclusive, so if the string has length n, the max end value is n - 1
+ch_string *ch_substring(ch_context *vm, ch_string* target, size_t start, size_t end);
+
+bool ch_containsstring(ch_context *vm, ch_string* haystack, ch_string* needle);
+
 void ch_initstring(ch_string *string, const char *value, size_t size);
 
 bool ch_object_isfalsy(ch_object* object);

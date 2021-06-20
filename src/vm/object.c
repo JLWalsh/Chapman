@@ -11,6 +11,21 @@ static ch_string *new_string(const char *value, size_t size) {
   return string;
 }
 
+// Used when we are allowed to free() the string, in the event that it is already interned
+// This is only used by functions in this file that allocate strings (ex. substring, concat)
+static ch_string *register_allocated_string(ch_context* vm, char* value, size_t size) {
+  ch_string *interned_string = ch_table_find_string(&vm->strings, value, size);
+  if (interned_string != NULL) {
+    free(value);
+    return interned_string;
+  }
+
+  ch_string *string = new_string(value, size);
+  ch_table_set(&vm->strings, string, MAKE_NULL());
+
+  return string;
+}
+
 ch_function *ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount) {
   ch_function *function = malloc(sizeof(ch_function));
   function->object.type = TYPE_FUNCTION;
@@ -58,16 +73,23 @@ ch_string *ch_concatstring(ch_context *vm, ch_string* left, ch_string* right) {
   memcpy(value + left->size, right->value, right->size);
   value[size] = '\0';
 
-  ch_string *interned_string = ch_table_find_string(&vm->strings, value, size);
-  if (interned_string != NULL) {
-    free(value);
-    return interned_string;
-  }
+  return register_allocated_string(vm, value, size);
+}
 
-  ch_string *string = new_string(value, size);
-  ch_table_set(&vm->strings, string, MAKE_NULL());
+ch_string *ch_substring(ch_context *vm, ch_string* target, size_t start, size_t end) {
+  if (end <= start || start >= target->size || end > target->size) return NULL;
+  size_t size = end - start;
+  char *value = (char*) malloc(size + 1);
+  memcpy(value, &target->value[start], size);
+  value[size] = '\0';
 
-  return string;
+  return register_allocated_string(vm, value, size);
+}
+
+bool ch_containsstring(ch_context *vm, ch_string* haystack, ch_string* needle) {
+  if (needle->size > haystack->size) return false;
+
+  return strstr(haystack->value, needle->value) != NULL;
 }
 
 void ch_initstring(ch_string *string, const char *value, size_t size) {

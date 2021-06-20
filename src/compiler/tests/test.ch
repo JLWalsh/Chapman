@@ -1,8 +1,8 @@
 #main() {
-    if(null || false) {
-        print("true");
-        return;
+    if (contains("baube avec cheveux", "cheveux222")) {
+        print("IZ CONTAINS!");
+    } else {
+        print("NOT CONTAINZ :(");
     }
-
-    print("false");
 }
+

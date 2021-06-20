@@ -78,6 +78,12 @@ void ch_runtime_error(ch_context *context, ch_exit exit, const char *error,
 void ch_addnative(ch_context *context, ch_native_function function,
                   const char *name);
 
+// All ch_popx functions will still modify the popped argument even if it doesn't match the requested type
+// So before using the popped value, it's important to check the returned flag
+bool ch_popnumber(ch_context* vm, double* popped);
+
+bool ch_popstring(ch_context* vm, ch_string** popped);
+
 ch_primitive ch_pop(ch_context *vm);
 
 void ch_push(ch_context *vm, ch_primitive primitive);
