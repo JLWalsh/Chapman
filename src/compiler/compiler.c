@@ -77,6 +77,7 @@ static void do_while_statement(ch_compilation* comp);
 static void for_statement(ch_compilation* comp);
 
 static uint8_t begin_scope(ch_compilation *comp);
+static void end_scope_no_cleanup(ch_compilation* comp, uint8_t last_scope_size);
 static void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
 static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
 static void add_variable(ch_compilation *comp, ch_lexeme name);
@@ -351,7 +352,7 @@ void function(ch_compilation *comp) {
   uint8_t scope_mark = begin_scope(comp);
   ch_argcount argcount = function_arglist(comp);
   scope(comp);
-  end_scope(comp, scope_mark);
+  end_scope_no_cleanup(comp, scope_mark);
 
   // Ensure that all functions return
   EMIT_OP(GET_EMIT(comp), OP_RETURN_VOID);
@@ -668,10 +669,14 @@ void for_statement(ch_compilation* comp) {
 
 uint8_t begin_scope(ch_compilation *comp) { return comp->scope.locals_size; }
 
+void end_scope_no_cleanup(ch_compilation* comp, uint8_t last_scope_size) {
+  comp->scope.locals_size = last_scope_size;
+}
+
 void end_scope(ch_compilation *comp, uint8_t last_scope_size) {
   if (last_scope_size != comp->scope.locals_size) {
     uint8_t num_values_popped = comp->scope.locals_size - last_scope_size;
-    comp->scope.locals_size = last_scope_size;
+    end_scope_no_cleanup(comp, last_scope_size);
 
     EMIT_OP(GET_EMIT(comp), OP_POPN);
     EMIT_PTR(GET_EMIT(comp), num_values_popped);
