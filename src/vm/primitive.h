@@ -1,5 +1,5 @@
 #pragma once
-#include "object.h"
+#include <stdbool.h>
 
 #define AS_NUMBER(p) (p.number_value)
 #define IS_NUMBER(p) (p.type == PRIMITIVE_NUMBER)
@@ -25,6 +25,8 @@
 #define MAKE_CHAR(value)                                                     \
   ((ch_primitive){.char_value = (value),                        \
                   .type = PRIMITIVE_CHAR})
+
+typedef struct ch_object ch_object;
 
 typedef enum {
   PRIMITIVE_NUMBER,

@@ -1,4 +1,5 @@
 #include "primitive.h"
+#include "object.h"
 
 bool ch_primitive_isfalsy(const ch_primitive value) {
 	switch(value.type) {

@@ -27,7 +27,10 @@
     EMIT_BYTECODE(emit_ptr, &(le_value), sizeof(le_value));                    \
   }
 #define EMIT_ARGCOUNT(emit_ptr, value)                                         \
-  EMIT_BYTECODE(emit_ptr, &(value), sizeof(ch_argcount))
+  { \
+    ch_argcount _argcount = (value); \
+    EMIT_BYTECODE(emit_ptr, &(_argcount), sizeof(ch_argcount));\
+  }
 #define EMIT_OP(emit_ptr, value)                                               \
   {                                                                            \
     ch_op op = (value);                                                        \

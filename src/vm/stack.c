@@ -76,6 +76,14 @@ void ch_stack_set(ch_stack *stack, ch_stack_addr addr, ch_primitive entry) {
   stack->start[addr] = entry;
 }
 
+ch_primitive* ch_stack_get(ch_stack *stack, ch_stack_addr addr) {
+  if (!ADDRESS_OK(stack, addr)) {
+    return NULL;
+  }
+
+  return &stack->start[addr];
+}
+
 ch_primitive ch_stack_peek(ch_stack *stack, ch_stack_addr addr_from_top) {
   return stack->start[stack->size - addr_from_top - 1];
 }

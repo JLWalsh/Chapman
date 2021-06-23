@@ -1,8 +1,14 @@
-#main() {
-    if (contains("baube avec cheveux", "cheveux222")) {
-        print("IZ CONTAINS!");
-    } else {
-        print("NOT CONTAINZ :(");
+#outer() {
+    val x = "it works!!!";
+    #inner() {
+        print(x);
     }
+
+    return inner;
+}
+#main() {
+    val inner = outer();
+
+    inner();
 }
 

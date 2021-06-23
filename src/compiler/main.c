@@ -44,22 +44,7 @@ void printvalue(ch_primitive return_value) {
       break;
     }
     case PRIMITIVE_OBJECT: {
-      printf("OBJECT: ");
-      ch_object* obj = AS_OBJECT(return_value);
-      switch(obj->type) {
-        case TYPE_FUNCTION: {
-          printf("FUNCTION");
-          break;
-        }
-        case TYPE_NATIVE: {
-          printf("NATIVE");
-          break;
-        }
-        case TYPE_STRING: {
-          printf("STRING %s", AS_STRING(obj)->value);
-          break;
-        }
-      }
+      ch_object_print(AS_OBJECT(return_value));
       break;
     }
   }
@@ -83,13 +68,13 @@ int main(void) {
     return 0;
   }
 
-  ch_context vm = ch_newvm(compiled_program);
-  ch_addnative(&vm, print, "print");
-  ch_primitive return_value = ch_runfunction(&vm, "main");
-  ch_freevm(&vm);
-  printvalue(return_value);
+  // ch_context vm = ch_newvm(compiled_program);
+  // ch_addnative(&vm, print, "print");
+  // ch_primitive return_value = ch_runfunction(&vm, "main");
+  // ch_freevm(&vm);
+  // printvalue(return_value);
 
-  // ch_disassemble(&compiled_program);
+  ch_disassemble(&compiled_program);
 
   return 0;
 }

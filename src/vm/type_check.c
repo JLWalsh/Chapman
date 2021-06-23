@@ -1,5 +1,15 @@
 #include "type_check.h"
 
+bool checkobject(ch_context* vm, ch_primitive value, ch_object** actual) {
+	if (!IS_OBJECT(value)) {
+		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected string type, but got type %d instead", value.type);
+		return false;
+	}
+
+	*actual = AS_OBJECT(value);
+	return true;
+}
+
 bool ch_checkargcount(ch_context* vm, ch_argcount expected, ch_argcount actual) {
 	bool is_same = expected == actual;
 
@@ -11,18 +21,29 @@ bool ch_checkargcount(ch_context* vm, ch_argcount expected, ch_argcount actual) 
 }
 
 bool ch_checkstring(ch_context* vm, ch_primitive value, ch_string** actual) {
-	if (!IS_OBJECT(value)) {
-		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected string type, but got type %d instead", value.type);
-		return false;
-	}
+	ch_object* object_value = NULL;
+	if(!checkobject(vm, value, &object_value)) return false;
 
-	ch_object* object_value = AS_OBJECT(value);
 	if (!IS_STRING(object_value)) {
 		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected string type, but got object type %d instead", object_value->type);
 		return false;
 	}
 
 	*actual = AS_STRING(object_value);
+
+	return true;
+}
+
+bool ch_checkfunction(ch_context* vm, ch_primitive value, ch_function** actual) {
+	ch_object* object_value = NULL;
+	if(!checkobject(vm, value, &object_value)) return false;
+
+	if (!IS_FUNCTION(object_value)) {
+		ch_runtime_error(vm, EXIT_USER_ERROR, "Expected function type, but got object type %d instead", object_value->type);
+		return false;
+	}
+
+	*actual = AS_FUNCTION(object_value);
 
 	return true;
 }

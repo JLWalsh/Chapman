@@ -76,6 +76,7 @@ static void call(ch_context *context, ch_function *function,
   ch_call *call = &context->call_stack.calls[context->call_stack.size++];
   call->return_addr = context->pcurrent;
   call->stack_addr = CH_STACK_ADDR(&context->stack) - function->argcount;
+  call->closure = NULL;
 
   context->pcurrent = function_ptr;
 }
@@ -90,6 +91,13 @@ static void try_call(ch_context *context, ch_primitive primitive,
   }
 
   ch_object *object = AS_OBJECT(primitive);
+
+  if (IS_CLOSURE(object)) {
+    ch_closure* closure = AS_CLOSURE(object);
+    call(context, closure->function, argcount);
+    CURRENT_CALL(context).closure = closure;
+    return;
+  }
 
   if (IS_FUNCTION(object)) {
     call(context, AS_FUNCTION(object), argcount);
@@ -181,6 +189,10 @@ static void set_global(ch_context *context, ch_string* name, ch_primitive value,
 
     *entry_found = value;
   }
+}
+
+static ch_upvalue* capture_upvalue(ch_context* context, ch_primitive* value) {
+  return ch_loadupvalue(value);
 }
 
 static ch_string *read_string(ch_context *context) {
@@ -336,6 +348,20 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       ch_stack_set(&context->stack, index, entry);
       break;
     }
+    case OP_LOAD_UPVALUE: {
+      uint8_t index = VM_READ_ARGCOUNT(context);
+      ch_primitive* value = CURRENT_CALL(context).closure->upvalues[index]->value;
+      STACK_PUSH(context, *value);
+      break;
+    }
+    case OP_SET_UPVALUE: {
+      uint8_t index = VM_READ_ARGCOUNT(context);
+      ch_primitive value;
+      STACK_POP(context, &value);
+
+      *CURRENT_CALL(context).closure->upvalues[index]->value = value;
+      break;
+    }
     case OP_DEFINE_GLOBAL:
     case OP_SET_GLOBAL: {
       ch_string *name = read_string(context);
@@ -367,6 +393,29 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       ch_primitive function =
           MAKE_OBJECT(ch_loadfunction(function_ptr, argcount));
       STACK_PUSH(context, function);
+      break;
+    }
+    case OP_CLOSURE: {
+      uint8_t upvalue_count = VM_READ_ARGCOUNT(context);
+      ch_primitive value;
+      STACK_POP(context, &value);
+      ch_function* function = NULL;
+      if(!ch_checkfunction(context, value, &function)) break;
+
+      ch_closure* closure = ch_loadclosure(function, upvalue_count);
+      STACK_PUSH(context, MAKE_OBJECT(closure));
+
+      for(uint8_t i = 0; i < upvalue_count; i++) {
+        uint8_t is_local = VM_READ_ARGCOUNT(context);
+        uint8_t index = VM_READ_ARGCOUNT(context);
+
+        if (is_local) {
+          ch_stack_addr index = CURRENT_CALL(context).stack_addr + index;
+          closure->upvalues[i] = capture_upvalue(context, ch_stack_get(&context->stack, index));
+        } else {
+          closure->upvalues[i] = CURRENT_CALL(context).closure->upvalues[index];
+        }
+      }
       break;
     }
     case OP_CALL: {

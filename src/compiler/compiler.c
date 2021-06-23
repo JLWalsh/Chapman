@@ -52,6 +52,7 @@ static void patch_jump(ch_compilation *comp, ch_jmpptr patch_address);
 
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
+static void closure(ch_compilation *comp);
 static ch_argcount function_arglist(ch_compilation *comp);
 
 /*
@@ -76,12 +77,15 @@ static void while_statement(ch_compilation* comp);
 static void do_while_statement(ch_compilation* comp);
 static void for_statement(ch_compilation* comp);
 
+static ch_scope new_localscope();
 static uint8_t begin_scope(ch_compilation *comp);
-static void end_scope_no_cleanup(ch_compilation* comp, uint8_t last_scope_size);
 static void end_scope(ch_compilation *comp, uint8_t parent_scope_size);
-static bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset);
+static bool scope_lookup(ch_scope *scope, ch_lexeme name, uint8_t *offset);
+static bool upvalue_lookup(ch_compilation *comp, ch_scope* scope, ch_lexeme name, uint8_t *index);
 static void add_variable(ch_compilation *comp, ch_lexeme name);
 static void add_local(ch_compilation *comp, ch_lexeme name);
+// Returns the upvalue's index
+static uint8_t add_upvalue(ch_compilation *comp, ch_scope* scope, uint8_t offset, bool is_local);
 static void add_global(ch_compilation *comp, ch_lexeme name);
 static void load_variable(ch_compilation *comp, ch_lexeme name);
 static void set_variable(ch_compilation* comp, ch_lexeme name);
@@ -127,9 +131,10 @@ const ch_parse_rule *get_rule(ch_token_kind kind);
 bool ch_compile(const uint8_t *program, size_t program_size,
                 ch_program *output) {
   ch_emit_scope global_emit_scope;
+  ch_scope global_scope = new_localscope();
   ch_compilation comp = {
       .token_state = init_token(program, program_size),
-      .scope = {.locals_size = 0},
+      .scope = &global_scope,
       .is_panic = false,
       .has_errors = false,
       .emit = ch_emit_create(&global_emit_scope),
@@ -164,10 +169,8 @@ void call_main(ch_compilation *comp) {
   ch_dataptr string_ptr = emit_string(comp, main_name.start, main_name.size);
   EMIT_PTR(GET_EMIT(comp), string_ptr);
 
-  // Call it
   EMIT_OP(GET_EMIT(comp), OP_CALL);
-  ch_argcount argcount = 0;
-  EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
+  EMIT_ARGCOUNT(GET_EMIT(comp), 0);
 
   // When main returns, halt the machine
   EMIT_OP(GET_EMIT(comp), OP_HALT);
@@ -341,6 +344,10 @@ void statement(ch_compilation *comp) {
 }
 
 void function(ch_compilation *comp) {
+  ch_scope locals_scope = new_localscope();
+  locals_scope.parent = comp->scope;
+  comp->scope = &locals_scope;
+
   consume(comp, TK_POUND, "Expected start of function.", NULL);
   ch_token name;
   if (!consume(comp, TK_ID, "Expected function name.", &name))
@@ -352,7 +359,7 @@ void function(ch_compilation *comp) {
   uint8_t scope_mark = begin_scope(comp);
   ch_argcount argcount = function_arglist(comp);
   scope(comp);
-  end_scope_no_cleanup(comp, scope_mark);
+  end_scope(comp, scope_mark);
 
   // Ensure that all functions return
   EMIT_OP(GET_EMIT(comp), OP_RETURN_VOID);
@@ -363,7 +370,23 @@ void function(ch_compilation *comp) {
   EMIT_PTR(GET_EMIT(comp), function_ptr);
   EMIT_ARGCOUNT(GET_EMIT(comp), argcount);
 
+  if (!CH_EMITTING_GLOBALLY(GET_EMIT(comp))) {
+    closure(comp);
+  }
+
+  comp->scope = comp->scope->parent;
   add_variable(comp, name.lexeme);
+}
+
+void closure(ch_compilation *comp) {
+  EMIT_OP(GET_EMIT(comp), OP_CLOSURE);
+  EMIT_ARGCOUNT(GET_EMIT(comp), comp->scope->upvalue_count);
+
+  for(uint8_t i = 0; i < comp->scope->upvalue_count; i++) {
+    ch_comp_upvalue* upvalue = &comp->scope->upvalues[i];
+    EMIT_ARGCOUNT(GET_EMIT(comp), upvalue->is_local ? 1 : 0);
+    EMIT_ARGCOUNT(GET_EMIT(comp), upvalue->offset);
+  }
 }
 
 ch_argcount function_arglist(ch_compilation *comp) {
@@ -479,12 +502,12 @@ void declaration(ch_compilation *comp) {
 }
 
 void add_variable(ch_compilation *comp, ch_lexeme name) {
-  if (comp->scope.locals_size == UINT8_MAX) {
+  if (comp->scope->locals_size == UINT8_MAX) {
     error(comp, "Exceeded variable limit in scope.");
     return;
   }
 
-  if (scope_lookup(comp, name, NULL)) {
+  if (scope_lookup(comp->scope, name, NULL)) {
     error(comp, "Variable has already been defined: %.*s", name.size,
           name.start);
     return;
@@ -498,8 +521,28 @@ void add_variable(ch_compilation *comp, ch_lexeme name) {
 }
 
 void add_local(ch_compilation *comp, ch_lexeme name) {
-  ch_local *local = &comp->scope.locals[comp->scope.locals_size++];
+  ch_local *local = &comp->scope->locals[comp->scope->locals_size++];
   local->name = name;
+  local->is_captured = false;
+}
+
+uint8_t add_upvalue(ch_compilation *comp, ch_scope * scope, uint8_t offset, bool is_local) {
+  uint8_t upvalue = scope->upvalue_count;
+
+  for(uint8_t i = 0; i < scope->upvalue_count; i++) {
+    ch_comp_upvalue* upvalue = &scope->upvalues[i];
+    if (upvalue->offset == offset && upvalue->is_local == is_local) return i;
+  }
+  
+  if(upvalue == UINT8_MAX) {
+    error(comp, "Too many upvalues in current scope");
+    return 0;
+  }
+
+  scope->upvalues[upvalue].is_local = is_local;
+  scope->upvalues[upvalue].offset = offset;
+
+  return scope->upvalue_count++;
 }
 
 void add_global(ch_compilation *comp, ch_lexeme name) {
@@ -510,11 +553,13 @@ void add_global(ch_compilation *comp, ch_lexeme name) {
 
 void load_variable(ch_compilation *comp, ch_lexeme name) {
   uint8_t offset;
-  bool is_local = scope_lookup(comp, name, &offset);
 
-  if (is_local) {
+  if (scope_lookup(comp->scope, name, &offset)) {
     EMIT_OP(GET_EMIT(comp), OP_LOAD_LOCAL);
     EMIT_PTR(GET_EMIT(comp), offset);
+  } else if(upvalue_lookup(comp, comp->scope, name, &offset)) {
+    EMIT_OP(GET_EMIT(comp), OP_LOAD_UPVALUE);
+    EMIT_ARGCOUNT(GET_EMIT(comp), offset);
   } else {
     EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
     ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
@@ -524,11 +569,13 @@ void load_variable(ch_compilation *comp, ch_lexeme name) {
 
 void set_variable(ch_compilation* comp, ch_lexeme name) {
   uint8_t offset;
-  bool is_local = scope_lookup(comp, name, &offset);
 
-  if (is_local) {
+  if (scope_lookup(comp->scope, name, &offset)) {
     EMIT_OP(GET_EMIT(comp), OP_SET_LOCAL);
     EMIT_PTR(GET_EMIT(comp), offset);
+  } else if(upvalue_lookup(comp, comp->scope, name, &offset)) {
+    EMIT_OP(GET_EMIT(comp), OP_SET_UPVALUE);
+    EMIT_ARGCOUNT(GET_EMIT(comp), offset);
   } else {
     EMIT_OP(GET_EMIT(comp), OP_SET_GLOBAL);
     ch_dataptr string_ptr = emit_string(comp, name.start, name.size);
@@ -546,13 +593,13 @@ void scope(ch_compilation *comp) {
   consume(comp, TK_CCLOSE, "Expected end of scope.", NULL);
 }
 
-bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset) {
-  if (comp->scope.locals_size == 0) {
+bool scope_lookup(ch_scope *scope, ch_lexeme name, uint8_t *offset) {
+  if (scope->locals_size == 0) {
     return false;
   }
 
-  for (int32_t i = comp->scope.locals_size - 1; i >= 0; i--) {
-    ch_lexeme *value_name = &comp->scope.locals[i].name;
+  for (int32_t i = scope->locals_size - 1; i >= 0; i--) {
+    ch_lexeme *value_name = &scope->locals[i].name;
     if (value_name->size != name.size) {
       continue;
     }
@@ -562,6 +609,25 @@ bool scope_lookup(ch_compilation *comp, ch_lexeme name, uint8_t *offset) {
         *offset = i;
       return true;
     }
+  }
+
+  return false;
+}
+
+bool upvalue_lookup(ch_compilation* comp, ch_scope *scope, ch_lexeme name, uint8_t *index) {
+  if (scope->parent == NULL) return false;
+
+  uint8_t offset;
+  if(scope_lookup(scope->parent, name, &offset)) {
+    *index = add_upvalue(comp, scope, offset, true);
+    scope->parent->locals[offset].is_captured = true;
+    return true;
+  }
+
+  uint8_t upvalue;
+  if(upvalue_lookup(comp, scope->parent, name, &upvalue)) {
+    *index = add_upvalue(comp, scope, upvalue, false);
+    return true;
   }
 
   return false;
@@ -667,19 +733,29 @@ void for_statement(ch_compilation* comp) {
 
 }
 
-uint8_t begin_scope(ch_compilation *comp) { return comp->scope.locals_size; }
-
-void end_scope_no_cleanup(ch_compilation* comp, uint8_t last_scope_size) {
-  comp->scope.locals_size = last_scope_size;
+ch_scope new_localscope() {
+  return (ch_scope) {
+    .locals_size=0,
+    .upvalue_count=0,
+    .parent=NULL,
+  };
 }
 
-void end_scope(ch_compilation *comp, uint8_t last_scope_size) {
-  if (last_scope_size != comp->scope.locals_size) {
-    uint8_t num_values_popped = comp->scope.locals_size - last_scope_size;
-    end_scope_no_cleanup(comp, last_scope_size);
+uint8_t begin_scope(ch_compilation *comp) { return comp->scope->locals_size; }
 
-    EMIT_OP(GET_EMIT(comp), OP_POPN);
-    EMIT_PTR(GET_EMIT(comp), num_values_popped);
+void end_scope(ch_compilation *comp, uint8_t last_scope_size) {
+  if (last_scope_size != comp->scope->locals_size) {
+    uint8_t num_values_popped = comp->scope->locals_size - last_scope_size;
+
+    for(uint8_t i = 0; i < num_values_popped; i++) {
+      if (comp->scope->locals[comp->scope->locals_size - i - 1].is_captured) {
+        EMIT_OP(GET_EMIT(comp), OP_CLOSE_UPVALUE);
+      } else {
+        EMIT_OP(GET_EMIT(comp), OP_POP);
+      }
+    }
+
+    comp->scope->locals_size = last_scope_size;
   }
 }
 

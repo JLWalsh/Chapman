@@ -38,6 +38,7 @@ typedef struct {
 typedef struct {
   uint8_t *return_addr;
   ch_stack_addr stack_addr;
+  ch_closure* closure;
 } ch_call;
 
 #define CH_CALL_STACK_SIZE 256

@@ -1,6 +1,7 @@
 #include "object.h"
 #include "chapman.h"
 #include "hash.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -33,6 +34,29 @@ ch_function *ch_loadfunction(ch_dataptr function_ptr, ch_argcount argcount) {
   function->ptr = function_ptr;
 
   return function;
+}
+
+ch_closure *ch_loadclosure(ch_function* function, uint8_t upvalue_count) {
+  ch_upvalue** upvalues = malloc(sizeof(ch_upvalue*) * upvalue_count);
+  for(uint8_t i = 0; i < upvalue_count; i++) {
+    upvalues[i] = NULL;
+  }
+
+  ch_closure *closure = malloc(sizeof(ch_closure));
+  closure->function = function;
+  closure->object.type = TYPE_CLOSURE;
+  closure->upvalues = upvalues;
+  closure->upvalue_count = upvalue_count;
+
+  return closure;
+}
+
+ch_upvalue *ch_loadupvalue(ch_primitive* value) {
+  ch_upvalue *upvalue = malloc(sizeof(ch_upvalue));
+  upvalue->object.type = TYPE_UPVALUE;
+  upvalue->value = value;
+
+  return upvalue;
 }
 
 ch_native *ch_loadnative(ch_native_function function) {
@@ -110,4 +134,31 @@ bool ch_object_isfalsy(ch_object* object) {
       return false;
   }
 
+}
+
+void ch_object_print(ch_object* object) {
+  switch(object->type) {
+    case TYPE_CLOSURE: {
+      printf("CLOSURE FUNCTION");
+      break;
+    }
+    case TYPE_UPVALUE: {
+      printf("UPVALUE");
+      break;
+    }
+    case TYPE_FUNCTION: {
+      printf("FUNCTION");
+      break;
+    }
+    case TYPE_NATIVE: {
+      printf("NATIVE");
+      break;
+    }
+    case TYPE_STRING: {
+      printf("STRING %s", AS_STRING(object)->value);
+      break;
+    }
+  }
+
+  printf("\n");
 }

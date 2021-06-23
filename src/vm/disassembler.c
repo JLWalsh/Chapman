@@ -26,6 +26,9 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
 
     NAME(OP_LOAD_LOCAL, LOAD_LOCAL),
     NAME(OP_SET_LOCAL, SET_LOCAL),
+    NAME(OP_LOAD_UPVALUE, LOAD_UPVALUE),
+    NAME(OP_SET_UPVALUE, SET_UPVALUE),
+    NAME(OP_CLOSE_UPVALUE, CLOSE_UPVALUE),
     NAME(OP_SET_GLOBAL, SET_GLOBAL),
     NAME(OP_DEFINE_GLOBAL, DEFINE_GLOBAL),
     NAME(OP_LOAD_GLOBAL, LOAD_GLOBAL),
@@ -34,6 +37,7 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_RETURN_VOID, RETURN_VOID),
     NAME(OP_RETURN_VALUE, RETURN_VALUE),
     NAME(OP_FUNCTION, FUNCTION),
+    NAME(OP_CLOSURE, CLOSURE),
     NAME(OP_NATIVE, NATIVE),
 
     NAME(OP_JMP, JMP),
@@ -89,6 +93,14 @@ static size_t print_argcount(const ch_program *program, uint8_t *i) {
   return sizeof(ch_argcount);
 }
 
+static size_t print_upvalue(const ch_program* program, uint8_t* i) {
+  ch_argcount is_local = i[0];
+  ch_argcount index = i[1];
+
+  printf("\n      | %s %d\n", is_local ? "local" : "upvalue", index);
+  return sizeof(ch_argcount) * 2;
+}
+
 static size_t print_jump_ptr(const ch_program *program, uint8_t* i) {
   ch_jmpptr ptr = READ_JMPPTR(i);
   ch_jmpptr resolved_ptr = (i - program->start) + ptr + sizeof(ptr);
@@ -121,6 +133,11 @@ void ch_disassemble(const ch_program *program) {
       i += print_double_ptr(program, i);
       break;
     }
+    case OP_LOAD_UPVALUE:
+    case OP_SET_UPVALUE: {
+      i += print_argcount(program, i);
+      break;
+    }
     case OP_LOAD_LOCAL:
     case OP_SET_LOCAL:
     case OP_POPN: {
@@ -130,6 +147,14 @@ void ch_disassemble(const ch_program *program) {
     case OP_FUNCTION: {
       i += print_function_ptr(program, i);
       i += print_argcount(program, i);
+      break;
+    }
+    case OP_CLOSURE: {
+      ch_argcount num_upvalues = *i;
+      i += print_argcount(program, i);
+      for(ch_argcount j = 0; j < num_upvalues; j++) {
+        i += print_upvalue(program, i);
+      }
       break;
     }
     case OP_NATIVE:
