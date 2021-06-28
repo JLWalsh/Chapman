@@ -1,10 +1,22 @@
 #outer() {
     val x = "it works!!!";
-    #inner() {
+    #first() {
         print(x);
     }
+    x = "doot doot";
 
-    return inner;
+    #second() {
+        print("second: " + x);       
+    }
+
+    second();
+    x = "hello";
+    #third() {
+        print("third: " + x);       
+    }
+    third();
+    
+    return first;
 }
 #main() {
     val inner = outer();

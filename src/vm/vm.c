@@ -50,6 +50,40 @@ static void jump(ch_context *context, ch_jmpptr offset) {
   context->pcurrent = jump_ptr;
 }
 
+static ch_upvalue* capture_upvalue(ch_context* context, ch_primitive* value) {
+  ch_upvalue* previous = NULL;
+  ch_upvalue* upvalue = context->open_upvalues;
+
+  while(upvalue != NULL && upvalue->value > value) {
+    previous = upvalue;
+    upvalue = upvalue->next;
+  }
+
+  if (upvalue != NULL && upvalue->value == value) {
+    return upvalue;
+  }
+
+  ch_upvalue* created_upvalue = ch_loadupvalue(value);
+  created_upvalue->next = upvalue;
+
+  if (previous == NULL) {
+    context->open_upvalues = created_upvalue;
+  } else {
+    previous->next = created_upvalue;
+  }
+
+  return created_upvalue;
+}
+
+static void close_upvalues(ch_context* context, ch_primitive* last) {
+  while(context->open_upvalues != NULL && context->open_upvalues->value >= last) {
+    ch_upvalue* upvalue = context->open_upvalues;
+    upvalue->closed = *upvalue->value;
+    upvalue->value = &upvalue->closed;
+    context->open_upvalues = upvalue->next;
+  }
+}
+
 static void call(ch_context *context, ch_function *function,
                  ch_argcount argcount) {
   if (context->call_stack.size >= CH_CALL_STACK_SIZE) {
@@ -116,8 +150,12 @@ static void try_call(ch_context *context, ch_primitive primitive,
 }
 
 static void call_return(ch_context *context) {
+  ch_primitive* stack_pos = ch_stack_get(&context->stack, CURRENT_CALL(context).stack_addr);
+  close_upvalues(context, stack_pos);
+
   ch_call *call = &context->call_stack.calls[--context->call_stack.size];
   context->pcurrent = call->return_addr;
+
   // TODO check result of call
   ch_stack_seekto(&context->stack, call->stack_addr);
 }
@@ -137,6 +175,7 @@ ch_context ch_vm_newcontext(ch_program program) {
       .exit = RUNNING,
       .program = program,
       .program_return_value = MAKE_NULL(),
+      .open_upvalues=NULL
   };
 
   ch_table_create(&context.globals);
@@ -189,10 +228,6 @@ static void set_global(ch_context *context, ch_string* name, ch_primitive value,
 
     *entry_found = value;
   }
-}
-
-static ch_upvalue* capture_upvalue(ch_context* context, ch_primitive* value) {
-  return ch_loadupvalue(value);
 }
 
 static ch_string *read_string(ch_context *context) {
@@ -362,6 +397,12 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       *CURRENT_CALL(context).closure->upvalues[index]->value = value;
       break;
     }
+    case OP_CLOSE_UPVALUE: {
+      ch_primitive* closed = ch_stack_get(&context->stack, context->stack.size - 1);
+      close_upvalues(context, closed);
+      ch_stack_popn(&context->stack, 1);
+      break;
+    }
     case OP_DEFINE_GLOBAL:
     case OP_SET_GLOBAL: {
       ch_string *name = read_string(context);
@@ -410,8 +451,8 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
         uint8_t index = VM_READ_ARGCOUNT(context);
 
         if (is_local) {
-          ch_stack_addr index = CURRENT_CALL(context).stack_addr + index;
-          closure->upvalues[i] = capture_upvalue(context, ch_stack_get(&context->stack, index));
+          ch_stack_addr addr = CURRENT_CALL(context).stack_addr + index;
+          closure->upvalues[i] = capture_upvalue(context, ch_stack_get(&context->stack, addr));
         } else {
           closure->upvalues[i] = CURRENT_CALL(context).closure->upvalues[index];
         }

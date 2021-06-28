@@ -56,9 +56,11 @@ typedef struct {
   ch_argcount argcount;
 } ch_function;
 
-typedef struct {
+typedef struct ch_upvalue {
   ch_object object;
   ch_primitive* value;
+  ch_primitive closed;
+  struct ch_upvalue* next;
 } ch_upvalue;
 
 typedef struct {

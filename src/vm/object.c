@@ -55,6 +55,8 @@ ch_upvalue *ch_loadupvalue(ch_primitive* value) {
   ch_upvalue *upvalue = malloc(sizeof(ch_upvalue));
   upvalue->object.type = TYPE_UPVALUE;
   upvalue->value = value;
+  upvalue->next = NULL;
+  upvalue->closed = MAKE_NULL();
 
   return upvalue;
 }

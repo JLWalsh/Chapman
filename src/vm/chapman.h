@@ -58,6 +58,7 @@ typedef struct ch_context {
   ch_call_stack call_stack;
   ch_exit exit;
 
+  ch_upvalue* open_upvalues;
   ch_table globals;
   // For interned strings
   ch_table strings;
