@@ -1,26 +1,13 @@
-#outer() {
-    val x = "it works!!!";
-    #first() {
-        print(x);
-    }
-    x = "doot doot";
-
-    #second() {
-        print("second: " + x);       
-    }
-
-    second();
-    x = "hello";
-    #third() {
-        print("third: " + x);       
-    }
-    third();
-    
-    return first;
-}
 #main() {
-    val inner = outer();
+    for(val x = 0; x < 10; x++) {
+        print("value is " + x);
+    }
 
-    inner();
+    val y = 5;
+    for(; y < 10; y++) {
+        print("value is " + y);
+    }
+
+    print("done looping");
 }
 

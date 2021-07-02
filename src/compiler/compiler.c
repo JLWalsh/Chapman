@@ -728,9 +728,37 @@ void while_statement(ch_compilation* comp) {
 void do_while_statement(ch_compilation* comp) {
 
 }
+/*
 
+for (val x = 0; x < abc; x++) {
+
+}
+*/
 void for_statement(ch_compilation* comp) {
+  consume(comp, TK_FOR, "Expected for statement", NULL);
+  consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
 
+  /*
+    A for loop requires three parts:
+     - an initializer
+     - a condition (that breaks the loop)
+     - an increment operation (that usually acts on the initializer)
+  */
+
+  if (opt_consume(comp, TK_SEMI, NULL)) {
+    // Do nothing
+  } else if (opt_consume(comp, TK_VAL, NULL)) {
+    declaration(comp);
+  }
+  declaration(comp);
+  semicolon(comp);
+
+  expression(comp);
+
+  consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
+  // optional initialization
+  // optional condition 
+  // optional operation
 }
 
 ch_scope new_localscope() {
