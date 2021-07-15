@@ -4,11 +4,14 @@ typedef enum {
   OP_HALT,
   OP_POP,
   OP_POPN,
+  OP_TOP,
 
   OP_NUMBER,
   OP_NEGATE,
   OP_ADD,
+  OP_ADDONE,
   OP_SUB,
+  OP_SUBONE,
   OP_MUL,
   OP_DIV,
 

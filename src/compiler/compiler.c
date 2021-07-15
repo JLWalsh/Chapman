@@ -50,6 +50,9 @@ static ch_dataptr emit_string(ch_compilation *comp, const char *value,
 static ch_jmpptr emit_jump(ch_compilation *comp, ch_op jump_instruction);
 static void patch_jump(ch_compilation *comp, ch_jmpptr patch_address);
 
+static void emit_loop(ch_compilation *comp, ch_jmpptr offset);
+static ch_jmpptr record_loop(ch_compilation *comp);
+
 static void statement(ch_compilation *comp);
 static void function(ch_compilation *comp);
 static void closure(ch_compilation *comp);
@@ -63,6 +66,8 @@ static ch_argcount function_arglist(ch_compilation *comp);
 */
 static void statement_identifier(ch_compilation *comp);
 static void expression_identifier(ch_compilation *comp);
+static void prefix_identifier(ch_compilation *comp);
+static void postfix_identifier(ch_compilation* comp, ch_token name);
 static void identifier(ch_compilation *comp, bool must_have_invocation);
 
 static void declaration(ch_compilation *comp);
@@ -124,6 +129,8 @@ ch_parse_rule rules[NUM_TOKENS] = {
     [TK_TRUE] = {PREC_NONE, boolean, NULL},
     [TK_CHAR] = {PREC_NONE, expression_char, NULL},
     [TK_NULL] = {PREC_NONE, expression_null, NULL},
+    [TK_PLUS_PLUS] = {PREC_NONE, prefix_identifier, NULL},
+    [TK_MINUS_MINUS] = {PREC_NONE, prefix_identifier, NULL},
 };
 
 const ch_parse_rule *get_rule(ch_token_kind kind);
@@ -323,11 +330,28 @@ void patch_jump(ch_compilation *comp, ch_jmpptr patch_address) {
   ch_emit_patch_ptr(GET_EMIT(comp), offset, patch_address);
 }
 
+void emit_loop(ch_compilation *comp, ch_jmpptr offset) {
+  EMIT_OP(GET_EMIT(comp), OP_JMP);
+  EMIT_PTR(GET_EMIT(comp), 0);
+
+  ch_blob* bytecode = &GET_EMIT(comp)->emit_scope->bytecode;
+  ch_jmpptr current = CH_BLOB_CONTENT_SIZE(bytecode);
+  ch_jmpptr real_offset = (current - offset);
+
+  ch_emit_patch_ptr(GET_EMIT(comp), -real_offset, current - sizeof(ch_jmpptr));
+}
+
+ch_jmpptr record_loop(ch_compilation *comp) {
+  ch_blob* bytecode = &GET_EMIT(comp)->emit_scope->bytecode;
+  return CH_BLOB_CONTENT_SIZE(bytecode);
+}
+
 void statement(ch_compilation *comp) {
   ch_token_kind kind = comp->current.kind;
 
   switch (comp->current.kind) {
   case TK_VAL: {
+    advance(comp);
     declaration(comp);
     semicolon(comp);
     break;
@@ -429,6 +453,25 @@ void statement_identifier(ch_compilation *comp) {
 
 void expression_identifier(ch_compilation *comp) { identifier(comp, false); }
 
+void prefix_identifier(ch_compilation *comp) {
+  ch_token token = comp->previous;
+  ch_token identifier;
+  if (!consume(comp, TK_ID, "Expected identifier", &identifier)) return;
+
+  load_variable(comp, identifier.lexeme);
+
+  if (token.kind == TK_PLUS_PLUS) {
+    EMIT_OP(GET_EMIT(comp), OP_ADDONE);
+  } else {
+    EMIT_OP(GET_EMIT(comp), OP_SUBONE);
+  }
+
+  // Duplicate its value so that the new value stays on the stack
+  EMIT_OP(GET_EMIT(comp), OP_TOP);
+  set_variable(comp, identifier.lexeme);
+  return;
+}
+
 void identifier(ch_compilation *comp, bool is_statement) {
   ch_token name = comp->previous;
 
@@ -446,8 +489,23 @@ void identifier(ch_compilation *comp, bool is_statement) {
         error(comp, "Expected assignement or invocation.");
       } else {
         load_variable(comp, name.lexeme);
+        postfix_identifier(comp, name);
       }
     }
+  }
+}
+
+void postfix_identifier(ch_compilation* comp, ch_token name) {
+  // The identifier should already be loaded on the stack when this function is called
+  ch_token operator;
+  if (opt_consume(comp, TK_PLUS_PLUS, &operator) || opt_consume(comp, TK_MINUS_MINUS, &operator)) {
+    EMIT_OP(GET_EMIT(comp), OP_TOP);
+    if (operator.kind == TK_PLUS_PLUS) {
+      EMIT_OP(GET_EMIT(comp), OP_ADDONE);
+    } else {
+      EMIT_OP(GET_EMIT(comp), OP_SUBONE);
+    }
+    set_variable(comp, name.lexeme);
   }
 }
 
@@ -485,7 +543,6 @@ ch_argcount invocation_arguments(ch_compilation* comp) {
 }
 
 void declaration(ch_compilation *comp) {
-  consume(comp, TK_VAL, "Expected variable declaration.", NULL);
   ch_token name;
   if (!consume(comp, TK_ID, "Expected variable name.", &name))
     return;
@@ -638,6 +695,7 @@ void function_statement(ch_compilation *comp) {
 
   switch (comp->current.kind) {
   case TK_VAL: {
+    advance(comp);
     declaration(comp);
     semicolon(comp);
     break;
@@ -735,30 +793,74 @@ for (val x = 0; x < abc; x++) {
 }
 */
 void for_statement(ch_compilation* comp) {
+  uint8_t scope_mark = begin_scope(comp);
   consume(comp, TK_FOR, "Expected for statement", NULL);
   consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
 
   /*
-    A for loop requires three parts:
-     - an initializer
-     - a condition (that breaks the loop)
-     - an increment operation (that usually acts on the initializer)
+    The bytecode of the loop is laid out as follows:
+    1. initializer
+    2. condition
+    3. increment
+    4. body
+    5. exit
+
+    Jumps required:
+    J1: 2 -> 5 (false branch)
+    J2: 2 -> 4 (true branch)
+    J3: 3 -> 2 (check condition after increment)
+    J4: 4 -> 3 (increment after executing body)
+
+    Jumps J1, J2, J3 are only emitted if a condition is specified
   */
 
+  // Initializer
   if (opt_consume(comp, TK_SEMI, NULL)) {
-    // Do nothing
+    // No initializer, do nothing
   } else if (opt_consume(comp, TK_VAL, NULL)) {
     declaration(comp);
+    semicolon(comp);
   }
-  declaration(comp);
-  semicolon(comp);
 
-  expression(comp);
+  ch_jmpptr loop_start = record_loop(comp);
 
-  consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
-  // optional initialization
-  // optional condition 
-  // optional operation
+  bool has_condition = false;
+  ch_jmpptr exit_jump;
+  // Condition
+  if (opt_consume(comp, TK_SEMI, NULL)) {
+    // No condition, do nothing
+  } else {
+    has_condition = true;
+    expression(comp);
+    semicolon(comp);
+    exit_jump = emit_jump(comp, OP_JMP_FALSE);
+    EMIT_OP(GET_EMIT(comp), OP_POP);
+  }
+
+  // Increment
+  if (!opt_consume(comp, TK_PCLOSE, NULL)) {
+    ch_jmpptr body_jump = emit_jump(comp, OP_JMP);
+    ch_jmpptr increment_start = record_loop(comp);
+    expression(comp);
+    // Since we only care about the expression's side-effect, we pop its value
+    EMIT_OP(GET_EMIT(comp), OP_POP);
+    consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
+
+    emit_loop(comp, loop_start);
+    // Since the increment is optional, the body will either jump to increment start or condition start
+    loop_start = increment_start;
+    patch_jump(comp, body_jump);
+  }
+  
+  scope(comp);
+  emit_loop(comp, loop_start);
+
+  if (has_condition) {
+    patch_jump(comp, exit_jump);
+    EMIT_OP(GET_EMIT(comp), OP_POP);
+  }
+
+  end_scope(comp, scope_mark);
 }
 
 ch_scope new_localscope() {

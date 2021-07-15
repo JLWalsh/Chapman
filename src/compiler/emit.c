@@ -90,7 +90,7 @@ ch_dataptr ch_emit_write(ch_blob *blob, const void *data_start,
 void ch_emit_patch_ptr(ch_emit* emit, ch_dataptr ptr, ch_jmpptr patch_at) {
   ch_blob* bytecode = &emit->emit_scope->bytecode;
 
-  if (patch_at + sizeof(ptr) >= CH_BLOB_CONTENT_SIZE(bytecode)) return;
+  if (patch_at + sizeof(ptr) > CH_BLOB_CONTENT_SIZE(bytecode)) return;
 
   // uint* address = &bytecode->start[patch_at];
   uint8_t ptr_le[4];

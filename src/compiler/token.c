@@ -61,9 +61,19 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       *next = get_token(start, state, TK_EQ);
       return true;
     case '+':
+      if (*state->current == '+') {
+        state->current++;
+        *next = get_token(start, state, TK_PLUS_PLUS);
+        return true;
+      }
       *next = get_token(start, state, TK_PLUS);
       return true;
     case '-':
+      if (*state->current == '-') {
+        state->current++;
+        *next = get_token(start, state, TK_MINUS_MINUS);
+        return true;
+      }
       *next = get_token(start, state, TK_MINUS);
       return true;
     case ';':

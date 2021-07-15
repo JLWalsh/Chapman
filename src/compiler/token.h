@@ -10,7 +10,9 @@ typedef enum {
 
   TK_EQ,
   TK_PLUS,
+  TK_PLUS_PLUS,
   TK_MINUS,
+  TK_MINUS_MINUS,
   TK_STAR,
   // Forwardslash
   TK_FSLASH,

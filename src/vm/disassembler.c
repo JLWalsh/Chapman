@@ -11,11 +11,14 @@ const char *OPCODE_NAMES[NUMBER_OF_OPCODES] = {
     NAME(OP_HALT, HALT),
     NAME(OP_POP, POP),
     NAME(OP_POPN, POPN),
+    NAME(OP_TOP, TOP),
 
     NAME(OP_NUMBER, NUMBER),
     NAME(OP_NEGATE, NEGATE),
     NAME(OP_ADD, ADD),
+    NAME(OP_ADDONE, ADDONE),
     NAME(OP_SUB, SUB),
+    NAME(OP_SUBONE, SUBONE),
     NAME(OP_MUL, MUL),
     NAME(OP_DIV, DIV),
 
@@ -104,7 +107,7 @@ static size_t print_upvalue(const ch_program* program, uint8_t* i) {
 static size_t print_jump_ptr(const ch_program *program, uint8_t* i) {
   ch_jmpptr ptr = READ_JMPPTR(i);
   ch_jmpptr resolved_ptr = (i - program->start) + ptr + sizeof(ptr);
-  printf("offset %" PRIu32 " <resolved: %" PRIu32 ">", ptr, resolved_ptr);
+  printf("offset %" PRIi32 " <resolved: %" PRIi32 ">", ptr, resolved_ptr);
 
   return sizeof(ptr);
 }

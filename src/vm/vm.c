@@ -351,6 +351,25 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Cannot apply binary operation to primitive type: %d", args[0].type);
       break;
     }
+    case OP_ADDONE:
+    case OP_SUBONE: {
+      ch_primitive entry;
+      STACK_POP(context, &entry);
+      if (!IS_NUMBER(entry)) {
+        ch_runtime_error(context, EXIT_INCORRECT_TYPE, "Expected number for addone, subone op");
+        break;
+      }
+
+      double value;
+      if (opcode == OP_ADDONE) {
+        value = AS_NUMBER(entry) + 1;
+      } else {
+        value = AS_NUMBER(entry) - 1;
+      }
+
+      STACK_PUSH(context, MAKE_NUMBER(value));
+      break;
+    }
     case OP_HALT: {
       context->exit = EXIT_OK;
       break;
@@ -365,6 +384,10 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
 
       // TODO add runtime check?
       ch_stack_popn(&context->stack, num_popped);
+      break;
+    }
+    case OP_TOP: {
+      ch_stack_copy(&context->stack, CH_STACK_ADDR(&context->stack) - 1);
       break;
     }
     case OP_LOAD_LOCAL: {
