@@ -485,11 +485,11 @@ void identifier(ch_compilation *comp, bool is_statement) {
       break;
     }
     default: {
+      load_variable(comp, name.lexeme);
+      postfix_identifier(comp, name);
+
       if (is_statement) {
-        error(comp, "Expected assignement or invocation.");
-      } else {
-        load_variable(comp, name.lexeme);
-        postfix_identifier(comp, name);
+        EMIT_OP(GET_EMIT(comp), OP_POP);
       }
     }
   }
@@ -523,7 +523,7 @@ void invocation(ch_compilation *comp, ch_lexeme name) {
 ch_argcount invocation_arguments(ch_compilation* comp) {
   bool has_comma = false;
   ch_argcount argcount = 0;
-  while (comp->current.kind != TK_PCLOSE && comp->current.kind != TK_EOF) {
+while (comp->current.kind != TK_PCLOSE && comp->current.kind != TK_EOF) {
     expression(comp);
     has_comma = false;
 
@@ -780,18 +780,27 @@ void if_statement(ch_compilation* comp) {
 }
 
 void while_statement(ch_compilation* comp) {
+  consume(comp, TK_WHILE, "Expected while statement", NULL);
 
+  consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
+  ch_jmpptr loop = record_loop(comp);
+  expression(comp);
+  ch_jmpptr false_branch = emit_jump(comp, OP_JMP_FALSE);
+  EMIT_OP(GET_EMIT(comp), OP_POP);
+  consume(comp, TK_PCLOSE, "Expected opening parenthesis", NULL);
+
+  uint8_t scope_mark = begin_scope(comp);
+  scope(comp);
+  end_scope(comp, scope_mark);
+
+  emit_loop(comp, loop);
+  patch_jump(comp, false_branch);
 }
 
 void do_while_statement(ch_compilation* comp) {
 
 }
-/*
 
-for (val x = 0; x < abc; x++) {
-
-}
-*/
 void for_statement(ch_compilation* comp) {
   uint8_t scope_mark = begin_scope(comp);
   consume(comp, TK_FOR, "Expected for statement", NULL);
