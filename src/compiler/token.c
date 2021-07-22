@@ -141,7 +141,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       return false;
     case '/':
       if (*state->current == '/') {
-        while (*state->current != '\n') {
+        while (!IS_AT_END(state) && *state->current != '\n') {
           state->current++;
           start++;
         }
