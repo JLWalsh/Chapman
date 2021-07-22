@@ -730,6 +730,7 @@ void function_statement(ch_compilation *comp) {
   }
   case TK_DO: {
     do_while_statement(comp);
+    opt_consume(comp, TK_SEMI, NULL);
     break;
   }
   case TK_FOR: {
@@ -798,7 +799,21 @@ void while_statement(ch_compilation* comp) {
 }
 
 void do_while_statement(ch_compilation* comp) {
+  consume(comp, TK_DO, "Expected do while statement", NULL);
+  uint8_t scope_mark = begin_scope(comp);
+  ch_jmpptr loop_jump = record_loop(comp);
+  scope(comp);
+  end_scope(comp, scope_mark);
 
+  consume(comp, TK_WHILE, "Expected while keyword", NULL);
+  consume(comp, TK_POPEN, "Expected opening parenthesis", NULL);
+  expression(comp);
+  uint8_t exit_jump = emit_jump(comp, OP_JMP_FALSE);
+  EMIT_OP(GET_EMIT(comp), OP_POP);
+  emit_loop(comp, loop_jump);
+  patch_jump(comp, exit_jump);
+
+  consume(comp, TK_PCLOSE, "Expected closing parenthesis", NULL);
 }
 
 void for_statement(ch_compilation* comp) {

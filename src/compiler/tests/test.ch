@@ -1,8 +1,7 @@
 #main() {
-    val counter = 10;
-    while(counter) {
-        print("working!", counter);
-        counter--;
-    }
+    val counter = 0;
+    do {
+        print(counter--);
+    } while(counter)
 }
 
