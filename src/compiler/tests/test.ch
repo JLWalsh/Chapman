@@ -1,3 +1,6 @@
+val y = 10;
+print(y);
+
 #main() {
     // This is a comment
     val counter = 1;
@@ -6,5 +9,3 @@
     } while(counter)
 }
 
-
-// This loops forever
