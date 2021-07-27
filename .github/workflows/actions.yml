@@ -5,28 +5,20 @@ on:
   pull_request:
     branches: [main]
 jobs:
-  build:
+  build_and_test:
     runs-on: ubuntu-latest
     steps:
       - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v1.9
         with:
           cmake-version: '3.16.3'
-      - name: Check out repository code
+      - name: Checkout repository code
         uses: actions/checkout@v2
+      - name: Setup project dependencies
+        run: make setup
       - name: Generate makefiles using CMake
         run: make quickbuild
       - name: Compile project
         run: cd build && make
-      - name: Store compiler executable
-        uses: actions/upload-artifact@v2
-        with:
-          name: chapmanc-x64-linux
-          path: build/src/compiler/compiler
-          retention-days: 7
-      - name: Store vm library
-        uses: actions/upload-artifact@v2
-        with:
-          name: chapman-shared-x64-linux.so
-          path: build/src/vm/libvm-shared.so
-          retention-days: 7
+      - name: Run tests
+        run: cd build && ctest

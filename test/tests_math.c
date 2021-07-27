@@ -4,7 +4,6 @@
 void setUp(void) {}
 void tearDown(void) {}
 
-
 void test_can_add_numbers() {
     char program[] =  "val x = 10; val y = 20;";
     TEST_ASSERT_FALSE(false);

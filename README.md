@@ -59,23 +59,20 @@ The project's source code is split into two sub-projects, being the compiler and
 ### Requirements
 - CMake
 - clang-format
-- GNU Make
 - (Linux) gcc
 - (MacOS) gcc or clang
 - (Windows) mingw32 or mingw64
 
-## Makefile Commands
-Make is solely used to store util commands in this project.
-
-### Build
-```bash
-make quickbuild
+### Running tests
+In order to run our tests, we use Unity which is installed using a Git submodule. To install Unity, run the following command:
 ```
-Make sure that you have a working CMake installation in your environment.
+make setup
+```
 
-### Format
-```bash
-make format
+To run all tests, run the following command:
+```
+cd YOUR_BUILD_FOLDER/tests
+ctest
 ```
 
 ## Special Thanks
