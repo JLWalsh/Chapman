@@ -68,13 +68,13 @@ int main(void) {
     return 0;
   }
 
-  ch_context vm = ch_newvm(compiled_program);
-  ch_addnative(&vm, print, "print");
-  ch_primitive return_value = ch_runfunction(&vm, "main");
-  ch_freevm(&vm);
-  printvalue(return_value);
+  // ch_context vm = ch_newvm(compiled_program);
+  // ch_addnative(&vm, print, "print");
+  // ch_primitive return_value = ch_runfunction(&vm, "main");
+  // ch_freevm(&vm);
+  // printvalue(return_value);
 
-  // ch_disassemble(&compiled_program);
+  ch_disassemble(&compiled_program);
 
   return 0;
 }

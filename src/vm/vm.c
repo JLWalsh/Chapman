@@ -370,6 +370,16 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
       STACK_PUSH(context, MAKE_NUMBER(value));
       break;
     }
+    case OP_NEGATE: {
+      ch_primitive entry;
+      STACK_POP(context, &entry);
+
+      double value;
+      if(ch_checknumber(context, entry, &value)) {
+        STACK_PUSH(context, MAKE_NUMBER(-value));
+      }
+      break;
+    }
     case OP_HALT: {
       context->exit = EXIT_OK;
       break;

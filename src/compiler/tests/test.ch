@@ -1,11 +1,6 @@
-val y = 10;
-print(y);
+val y = -10;
 
 #main() {
-    // This is a comment
-    val counter = 1;
-    do {
-        print(counter--);
-    } while(counter)
+    print(y);
 }
 
