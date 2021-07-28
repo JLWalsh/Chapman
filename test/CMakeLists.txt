@@ -8,3 +8,4 @@ macro(ch_addtest name)
 endmacro()
 
 ch_addtest(tests_math)
+ch_addtest(tests_parse)
