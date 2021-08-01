@@ -9,3 +9,4 @@ endmacro()
 
 ch_addtest(tests_math)
 ch_addtest(tests_parse)
+ch_addtest(tests_closure)

@@ -1,6 +1,5 @@
-val y = -10;
 
 #main() {
-    print(y);
+#enclosing() { val x = 10; #closure() { return x; } return closure; } val closure = enclosing(); closure();
 }
 
