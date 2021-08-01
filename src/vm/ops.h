@@ -30,6 +30,7 @@ typedef enum {
   OP_DEFINE_GLOBAL,
   OP_LOAD_GLOBAL,
 
+  OP_BEGIN, // Tells the VM that it may invoke the main function (ex. after all globals are setup)
   OP_CALL,
   OP_RETURN_VOID,
   OP_RETURN_VALUE,

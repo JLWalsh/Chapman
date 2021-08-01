@@ -43,23 +43,12 @@ void test_can_parse_string() {
     TEST_ASSERT_EQUAL_CHAR_ARRAY(AS_STRING(result.object_value)->value, parsed_string, sizeof(parsed_string) - 1);
 }
 
-void test_can_parse_string_with_escape_character() {
-    char program[] =  "val x = \"Hello, \\\"world!\"; return x;";
-
-    ch_primitive result = run(program);
-
-    TEST_ASSERT_EQUAL(PRIMITIVE_OBJECT, result.type);
-    char parsed_string[] = "Hello, \"world!";
-    TEST_ASSERT_EQUAL_CHAR_ARRAY(AS_STRING(result.object_value)->value, parsed_string, sizeof(parsed_string) - 1);
-}
-
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_can_parse_number_without_decimals);
     RUN_TEST(test_can_parse_number_with_decimals);
     RUN_TEST(test_cannot_parse_number_with_missing_decimals);
     RUN_TEST(test_can_parse_string);
-    RUN_TEST(test_can_parse_string_with_escape_character);
 
     return UNITY_END();
 }

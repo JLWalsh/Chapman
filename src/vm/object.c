@@ -86,7 +86,7 @@ ch_string *ch_loadstring(ch_context *vm, const char *value, size_t size,
     final_value = copied_string;
   }
 
-  ch_string *string = new_string(value, size);
+  ch_string *string = new_string(final_value, size);
   ch_table_set(&vm->strings, string, MAKE_NULL());
 
   return string;

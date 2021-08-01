@@ -154,12 +154,8 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
       *next = get_token(start, state, TK_STAR);
       return true;
     case '"': {
-      while(!IS_AT_END(state) && peek(state) != '"') {
+      while(!IS_AT_END(state) && *state->current != '"') {
         state->current++;
-
-        if (*state->current == '\\') {
-          state->current++;
-        }
       }
       
       if (IS_AT_END(state)) {
@@ -167,8 +163,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
         return false;
       }
 
-      // Consume last string char, and "
-      state->current += 2;
+      state->current += 1;
 
       *next = get_token_end(start + 1, state->current - 1, TK_STRING, state);
 
@@ -190,7 +185,7 @@ bool ch_token_next(ch_token_state *state, ch_token *next) {
         if (lexeme_size >= MAX_ID_LENGTH) {
           ch_tk_error("Identifier size exceeds limit", state);
           return false;
-}
+        }
 
         ch_token_kind token_kind = parse_token_kind(start, lexeme_size);
         *next = get_token(start, state, token_kind);

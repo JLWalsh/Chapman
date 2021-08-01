@@ -230,6 +230,18 @@ static void set_global(ch_context *context, ch_string* name, ch_primitive value,
   }
 }
 
+static bool get_global(ch_context* context, ch_string* name) {
+  ch_primitive *global = ch_table_get(&context->globals, name);
+  if (global == NULL) {
+    ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND,
+                      "Global variable does not exist: %s.", name->value);
+    return false;
+  }
+
+  ch_stack_push(&context->stack, *global);
+  return true;
+}
+
 static ch_string *read_string(ch_context *context) {
   ch_dataptr string_ptr = VM_READ_PTR(context);
   ch_bytecode_string string =
@@ -282,6 +294,8 @@ static ch_primitive binary_op_string(ch_context* context, ch_object* args[2], ch
 }
 
 ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
+  size_t initial_stack_size = context->stack.size;
+
   while (context->exit == RUNNING) {
     uint8_t opcode = *(context->pcurrent);
     context->pcurrent++;
@@ -449,16 +463,7 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
     }
     case OP_LOAD_GLOBAL: {
       ch_string *name = read_string(context);
-
-      ch_primitive *global = ch_table_get(&context->globals, name);
-      if (global == NULL) {
-        ch_runtime_error(context, EXIT_GLOBAL_NOT_FOUND,
-                         "Global variable does not exist: %s.", name->value);
-        break;
-      }
-
-      STACK_PUSH(context, *global);
-
+      get_global(context, name);
       break;
     }
     case OP_FUNCTION: {
@@ -490,6 +495,14 @@ ch_primitive ch_vm_call(ch_context *context, ch_string *function_name) {
           closure->upvalues[i] = CURRENT_CALL(context).closure->upvalues[index];
         }
       }
+      break;
+    }
+    case OP_BEGIN: {
+      get_global(context, function_name);
+      ch_primitive function;
+      STACK_POP(context, &function);
+
+      try_call(context, function, initial_stack_size);
       break;
     }
     case OP_CALL: {

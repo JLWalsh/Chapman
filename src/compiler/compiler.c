@@ -95,8 +95,6 @@ static void add_global(ch_compilation *comp, ch_lexeme name);
 static void load_variable(ch_compilation *comp, ch_lexeme name);
 static void set_variable(ch_compilation* comp, ch_lexeme name);
 
-static void call_main(ch_compilation *comp);
-
 // Expression parsing
 static void parse(ch_compilation *comp, ch_precedence_level prec);
 static void grouping(ch_compilation *comp);
@@ -158,7 +156,7 @@ bool ch_compile(const uint8_t *program, size_t program_size,
 
   consume(&comp, TK_EOF, "Expected end of file.", NULL);
 
-  call_main(&comp);
+  EMIT_OP(GET_EMIT(&comp), OP_BEGIN);
 
   ch_dataptr program_start_ptr = ch_emit_commit_scope(&comp.emit);
 
@@ -167,20 +165,6 @@ bool ch_compile(const uint8_t *program, size_t program_size,
   free_compiler(&comp);
 
   return !comp.has_errors;
-}
-
-void call_main(ch_compilation *comp) {
-  // Load main function
-  EMIT_OP(GET_EMIT(comp), OP_LOAD_GLOBAL);
-  ch_lexeme main_name = {.start = "main", .size = 4};
-  ch_dataptr string_ptr = emit_string(comp, main_name.start, main_name.size);
-  EMIT_PTR(GET_EMIT(comp), string_ptr);
-
-  EMIT_OP(GET_EMIT(comp), OP_CALL);
-  EMIT_ARGCOUNT(GET_EMIT(comp), 0);
-
-  // When main returns, halt the machine
-  EMIT_OP(GET_EMIT(comp), OP_HALT);
 }
 
 void advance(ch_compilation *comp) {

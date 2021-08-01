@@ -3,6 +3,7 @@
 #include "ops.h"
 #include "stack.h"
 #include "table.h"
+#include "type_check.h"
 #include <stdint.h>
 
 typedef enum {

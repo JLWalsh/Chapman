@@ -22,7 +22,7 @@ Let's suppose that we wish to invoke the following program from a C or C++ codeb
 
 It can be done using Chapman's C API:
 ```c
-#include <chapman.h>
+#include <compiler.h>
 
 // Here we define the native function (which is used in the program above)
 void print(ch_context* vm, ch_argcount argcount) {
@@ -52,6 +52,9 @@ int main(void) {
     return 0;
 }
 ```
+
+## Examples
+Check out the [examples folder](/examples) for in-depth demos!
 
 ## Project Overview
 The project's source code is split into two sub-projects, being the compiler and the virtual machine. The compiler can be found at `src/compiler`, and the vm can be found at `src/vm`.
