@@ -6,14 +6,14 @@ A strictly typed, dynamic language inspired by Lua and Javascript.
 ## Quick Demo
 Let's suppose that we wish to invoke the following program from a C or C++ codebase:
 ```chapman
-#addTen(x) {
+#addNumber(x) {
     return x + 1337;
 }
 
 #main() {
     val number = 42;
 
-    val shinyNewNumber = addTen(number);
+    val shinyNewNumber = addNumber(number);
 
     // Print is a native function
     print(shinyNewNumber);
